@@ -265,6 +265,7 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
                 <span className="result-name">{r.name}</span>
                 <span className="result-meta">
                   {inDeckCount(r.name) > 0 ? `×${inDeckCount(r.name)} in deck` : ''}
+                  {r.manaCost && <span className="result-mana">{r.manaCost}</span>}
                   <button className="btn plus" onClick={() => addCard(r)} title="Add to deck">+</button>
                 </span>
               </div>

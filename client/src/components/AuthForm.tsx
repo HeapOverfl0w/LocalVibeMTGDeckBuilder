@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, setToken } from '../api';
 
 export default function AuthForm({ onAuthed }: { onAuthed: (username: string) => void }) {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -25,6 +27,7 @@ export default function AuthForm({ onAuthed }: { onAuthed: (username: string) =>
           : await api.register(username.trim(), password);
       setToken(res.token);
       onAuthed(res.user.username);
+      navigate('/decks');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {

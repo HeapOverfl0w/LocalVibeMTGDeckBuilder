@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { api, clearToken, getToken } from './api';
 import AuthForm from './components/AuthForm';
 import DeckEditor from './components/DeckEditor';
@@ -22,17 +23,35 @@ export default function App() {
     return <div className="loading-screen">Loading…</div>;
   }
 
-  if (!username) {
-    return <AuthForm onAuthed={setUsername} />;
-  }
-
   return (
-    <DeckEditor
-      username={username}
-      onLogout={() => {
-        clearToken();
-        setUsername(null);
-      }}
-    />
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          username ? (
+            <Navigate to="/decks" replace />
+          ) : (
+            <AuthForm onAuthed={setUsername} />
+          )
+        }
+      />
+      <Route
+        path="/decks"
+        element={
+          username ? (
+            <DeckEditor
+              username={username}
+              onLogout={() => {
+                clearToken();
+                setUsername(null);
+              }}
+            />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
   );
 }

@@ -246,7 +246,7 @@ select:focus {
 }
 
 .search-panel {
-  width: 340px;
+  width: 420px;
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -287,6 +287,13 @@ select:focus {
   color: var(--muted);
   font-size: 12px;
   white-space: nowrap;
+}
+
+.result-mana {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
 }
 
 .muted {
