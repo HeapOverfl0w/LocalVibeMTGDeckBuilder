@@ -1,12 +1,14 @@
 export interface CardResult {
   name: string;
   scryfallOracleId: string;
+  manaCost?: string;
 }
 
 export interface DeckCard {
   name: string;
   scryfallOracleId: string;
   count: number;
+  manaCost?: string;
 }
 
 export interface Deck {

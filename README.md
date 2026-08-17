@@ -18,6 +18,7 @@ A Magic: The Gathering deck editor.
 
 ```bash
 npm install
+npm run pull-card-info
 npm run dev
 ```
 
@@ -31,6 +32,7 @@ Server API: http://localhost:4000
 | `npm run dev`   | Run server + client in watch mode       |
 | `npm run build` | Build server and client                 |
 | `npm start`     | Run the compiled server                 |
+| `npm run pull-card-info` | Download latest AtomicCards.json from MTGJSON |
 
 ## Card images
 

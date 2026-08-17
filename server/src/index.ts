@@ -21,6 +21,7 @@ interface CardIdentifier {
 
 interface CardData {
   identifiers: CardIdentifier;
+  manaCost?: string;
 }
 
 interface AtomicCardsResponse {
@@ -42,6 +43,7 @@ interface DeckCard {
   name: string;
   scryfallOracleId: string;
   count: number;
+  manaCost?: string;
 }
 
 interface Deck {
@@ -72,6 +74,7 @@ declare global {
 interface CardNameData {
   name: string;
   scryfallOracleId: string;
+  manaCost?: string;
 }
 
 const cardNames = new Map<string, CardNameData>();
@@ -82,24 +85,25 @@ function loadCards(): void {
   const parsed: AtomicCardsResponse = JSON.parse(raw);
   for (const [name, variations] of Object.entries(parsed.data)) {
     if (variations && variations.length > 0) {
-      const scryfallOracleId = variations[0].identifiers?.scryfallOracleId || '';
-      cardNames.set(name, { name, scryfallOracleId });
+      const first = variations[0];
+      const scryfallOracleId = first.identifiers?.scryfallOracleId || '';
+      cardNames.set(name, { name, scryfallOracleId, manaCost: first.manaCost });
     }
   }
   console.log(`Loaded ${cardNames.size} unique card names.`);
 }
 
-function searchCards(query: string, limit: number): { name: string; scryfallOracleId: string }[] {
+function searchCards(query: string, limit: number): { name: string; scryfallOracleId: string; manaCost?: string }[] {
   const q = query.trim().toLowerCase();
   if (q.length < 3) return [];
   const words = q.split(/\s+/).filter(Boolean);
 
-  const results: { name: string; scryfallOracleId: string; score: number }[] = [];
+  const results: { name: string; scryfallOracleId: string; manaCost?: string; score: number }[] = [];
 
   for (const [name, card] of cardNames) {
     const lower = name.toLowerCase();
     if (lower === q) {
-      results.push({ name, scryfallOracleId: card.scryfallOracleId, score: -10_000 });
+      results.push({ name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, score: -10_000 });
       continue;
     }
     let score = 0;
@@ -114,11 +118,18 @@ function searchCards(query: string, limit: number): { name: string; scryfallOrac
     }
     if (!matched) continue;
     if (lower.startsWith(q)) score -= 5_000;
-    results.push({ name, scryfallOracleId: card.scryfallOracleId, score });
+    results.push({ name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, score });
   }
 
   results.sort((a, b) => a.score - b.score || a.name.localeCompare(b.name));
-  return results.slice(0, limit).map(({ name, scryfallOracleId }) => ({ name, scryfallOracleId }));
+  return results.slice(0, limit).map(({ name, scryfallOracleId, manaCost }) => ({ name, scryfallOracleId, manaCost }));
+}
+
+function enrichDeckCards(cards: DeckCard[]): DeckCard[] {
+  return cards.map((c) => {
+    const known = cardNames.get(c.name);
+    return known?.manaCost ? { ...c, manaCost: known.manaCost } : c;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -182,10 +193,11 @@ function validateDeckPayload(body: unknown): { name: string; cards: DeckCard[] }
   const out: DeckCard[] = [];
   for (const entry of cards) {
     if (!entry || typeof entry !== 'object') return null;
-    const { name: cardName, scryfallOracleId, count } = entry as {
+    const { name: cardName, scryfallOracleId, count, manaCost } = entry as {
       name?: unknown;
       scryfallOracleId?: unknown;
       count?: unknown;
+      manaCost?: unknown;
     };
     if (
       typeof cardName !== 'string' ||
@@ -197,7 +209,12 @@ function validateDeckPayload(body: unknown): { name: string; cards: DeckCard[] }
     ) {
       return null;
     }
-    out.push({ name: cardName, scryfallOracleId, count });
+    out.push({
+      name: cardName,
+      scryfallOracleId,
+      count,
+      ...(typeof manaCost === 'string' ? { manaCost } : {}),
+    });
   }
   return { name: name.trim(), cards: out };
 }
@@ -273,7 +290,7 @@ app.get('/api/cards/search', (req: Request, res: Response) => {
 app.get('/api/decks', requireAuth, (req: Request, res: Response) => {
   const decks = db.decks
     .filter((d) => d.userId === req.user!.id)
-    .map(({ userId, ...rest }) => rest);
+    .map(({ userId, ...rest }) => ({ ...rest, cards: enrichDeckCards(rest.cards) }));
   res.json(decks);
 });
 

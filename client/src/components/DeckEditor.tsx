@@ -83,8 +83,8 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
       const existing = d.cards.find((c) => c.name === card.name);
       const cards = existing
         ? d.cards.map((c) => (c.name === card.name ? { ...c, count: c.count + 1 } : c))
-        : [...d.cards, { name: card.name, scryfallOracleId: card.scryfallOracleId, count: 1 }].sort((a, b) =>
-            a.name.localeCompare(b.name),
+        : [...d.cards, { name: card.name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, count: 1 }].sort(
+            (a, b) => a.name.localeCompare(b.name),
           );
       return { ...d, cards };
     });
@@ -292,6 +292,7 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
                   >
                     <span className="row-count">{c.count}</span>
                     <span className="row-name">{c.name}</span>
+                    {c.manaCost && <span className="row-mana">{c.manaCost}</span>}
                     <button className="btn minus" onClick={() => removeCard(c.name)} title="Remove one copy">−</button>
                     <button className="btn plus" onClick={() => incrementCard(c.name)} title="Add one copy">+</button>
                   </div>
@@ -306,8 +307,10 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
                 <div key={c.name} className="image-card">
                   <img src={deckImageUrls[c.scryfallOracleId]} alt={c.name} loading="lazy" />
                   <span className="badge">{c.count}</span>
-                  <span className="image-name">{c.name}</span>
-                  <button className="btn plus" onClick={() => incrementCard(c.name)} title="Add one copy">+</button>
+                  <div className="image-card-controls">
+                    <button className="btn minus" onClick={() => removeCard(c.name)} title="Remove one copy">−</button>
+                    <button className="btn plus" onClick={() => incrementCard(c.name)} title="Add one copy">+</button>
+                  </div>
                 </div>
               ))}
             </div>

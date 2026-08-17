@@ -336,6 +336,13 @@ select:focus {
   flex: 1;
 }
 
+.row-mana {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
 /* ---------- Image view ---------- */
 .image-grid {
   display: grid;
@@ -366,14 +373,11 @@ select:focus {
   font-size: 13px;
 }
 
-.image-name {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--muted);
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.image-card-controls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 /* ---------- Tooltip ---------- */
