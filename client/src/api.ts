@@ -55,7 +55,7 @@ export const api = {
   getDecks() {
     return request<Deck[]>('/decks', { auth: true });
   },
-  saveDeck(deck: { id?: string; name: string; cards: DeckCard[] }) {
+  saveDeck(deck: { id?: string; name: string; cards: DeckCard[]; commander?: string }) {
     return deck.id
       ? request<Deck>(`/decks/${deck.id}`, { method: 'PUT', auth: true, body: deck })
       : request<Deck>('/decks', { method: 'POST', auth: true, body: deck });

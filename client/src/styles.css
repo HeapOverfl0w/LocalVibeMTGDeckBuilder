@@ -136,6 +136,36 @@ select:focus {
   margin: 0;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.nav-tabs a {
+  padding: 6px 12px;
+  color: var(--muted);
+  text-decoration: none;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+}
+
+.nav-tabs a:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+.nav-tabs a.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--panel-2);
+}
+
 .header-right {
   display: flex;
   align-items: center;
@@ -350,6 +380,43 @@ select:focus {
   letter-spacing: 0.5px;
 }
 
+/* ---------- Mana cost ---------- */
+.mana-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.mana-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+
+.mana-circle {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.mana-hybrid::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #000;
+}
+
 /* ---------- Image view ---------- */
 .image-grid {
   display: grid;
@@ -387,6 +454,44 @@ select:focus {
   margin-top: 6px;
 }
 
+/* ---------- Card image placeholder ---------- */
+.card-image-placeholder {
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.card-image-error {
+  color: var(--danger);
+}
+
+.card-image-error-icon {
+  font-size: 20px;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ---------- Tooltip ---------- */
 .card-tooltip {
   position: fixed;
@@ -401,6 +506,95 @@ select:focus {
 .card-tooltip img {
   width: 100%;
   display: block;
+}
+
+/* ---------- Commander ---------- */
+.commander-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.commander-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.commander-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.commander-clear {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.commander-clear:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.commander-preview {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1000;
+  width: 210px;
+  display: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  border-radius: var(--radius);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.commander-chip:hover .commander-preview {
+  display: block;
+}
+
+.commander-preview img {
+  width: 100%;
+  display: block;
+}
+
+.commander-preview-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+.commander-toggle {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.commander-toggle.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1a1a;
+  font-weight: 600;
 }
 
 /* ---------- Misc ---------- */

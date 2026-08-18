@@ -22,6 +22,7 @@ interface CardIdentifier {
 interface CardData {
   identifiers: CardIdentifier;
   manaCost?: string;
+  type?: string;
 }
 
 interface AtomicCardsResponse {
@@ -44,6 +45,7 @@ interface DeckCard {
   scryfallOracleId: string;
   count: number;
   manaCost?: string;
+  type?: string;
 }
 
 interface Deck {
@@ -51,6 +53,7 @@ interface Deck {
   userId: string;
   name: string;
   cards: DeckCard[];
+  commander?: string;
   updatedAt: string;
 }
 
@@ -74,6 +77,7 @@ declare global {
 interface CardNameData {
   name: string;
   scryfallOracleId: string;
+  type?: string;
   manaCost?: string;
 }
 
@@ -87,23 +91,23 @@ function loadCards(): void {
     if (variations && variations.length > 0) {
       const first = variations[0];
       const scryfallOracleId = first.identifiers?.scryfallOracleId || '';
-      cardNames.set(name, { name, scryfallOracleId, manaCost: first.manaCost });
+      cardNames.set(name, { name, scryfallOracleId, manaCost: first.manaCost, type: first.type });
     }
   }
   console.log(`Loaded ${cardNames.size} unique card names.`);
 }
 
-function searchCards(query: string, limit: number): { name: string; scryfallOracleId: string; manaCost?: string }[] {
+function searchCards(query: string, limit: number): { name: string; scryfallOracleId: string; manaCost?: string; type?: string }[] {
   const q = query.trim().toLowerCase();
   if (q.length < 3) return [];
   const words = q.split(/\s+/).filter(Boolean);
 
-  const results: { name: string; scryfallOracleId: string; manaCost?: string; score: number }[] = [];
+  const results: { name: string; scryfallOracleId: string; manaCost?: string; type?: string; score: number }[] = [];
 
   for (const [name, card] of cardNames) {
     const lower = name.toLowerCase();
     if (lower === q) {
-      results.push({ name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, score: -10_000 });
+      results.push({ name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, type: card.type, score: -10_000 });
       continue;
     }
     let score = 0;
@@ -118,17 +122,17 @@ function searchCards(query: string, limit: number): { name: string; scryfallOrac
     }
     if (!matched) continue;
     if (lower.startsWith(q)) score -= 5_000;
-    results.push({ name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, score });
+    results.push({ name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, type: card.type, score });
   }
 
   results.sort((a, b) => a.score - b.score || a.name.localeCompare(b.name));
-  return results.slice(0, limit).map(({ name, scryfallOracleId, manaCost }) => ({ name, scryfallOracleId, manaCost }));
+  return results.slice(0, limit).map(({ name, scryfallOracleId, manaCost, type }) => ({ name, scryfallOracleId, manaCost, type }));
 }
 
 function enrichDeckCards(cards: DeckCard[]): DeckCard[] {
   return cards.map((c) => {
     const known = cardNames.get(c.name);
-    return known?.manaCost ? { ...c, manaCost: known.manaCost } : c;
+    return known ? { ...c, ...(known.manaCost ? { manaCost: known.manaCost } : {}), ...(known.type ? { type: known.type } : {}) } : c;
   });
 }
 
@@ -184,20 +188,22 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
 // Deck payload validation
 // ---------------------------------------------------------------------------
 
-function validateDeckPayload(body: unknown): { name: string; cards: DeckCard[] } | null {
+function validateDeckPayload(body: unknown): { name: string; cards: DeckCard[]; commander?: string } | null {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
-  const { name, cards } = body as { name?: unknown; cards?: unknown };
+  const { name, cards, commander } = body as { name?: unknown; cards?: unknown; commander?: unknown };
   if (typeof name !== 'string' || name.trim().length === 0 || name.trim().length > 100) return null;
+  if (commander !== undefined && typeof commander !== 'string') return null;
   if (!Array.isArray(cards)) return null;
 
   const out: DeckCard[] = [];
   for (const entry of cards) {
     if (!entry || typeof entry !== 'object') return null;
-    const { name: cardName, scryfallOracleId, count, manaCost } = entry as {
+    const { name: cardName, scryfallOracleId, count, manaCost, type } = entry as {
       name?: unknown;
       scryfallOracleId?: unknown;
       count?: unknown;
       manaCost?: unknown;
+      type?: unknown;
     };
     if (
       typeof cardName !== 'string' ||
@@ -213,10 +219,11 @@ function validateDeckPayload(body: unknown): { name: string; cards: DeckCard[] }
       name: cardName,
       scryfallOracleId,
       count,
+      ...(typeof type === 'string' ? { type } : {}),
       ...(typeof manaCost === 'string' ? { manaCost } : {}),
     });
   }
-  return { name: name.trim(), cards: out };
+  return { name: name.trim(), cards: out, ...(typeof commander === 'string' ? { commander } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -305,6 +312,7 @@ app.post('/api/decks', requireAuth, (req: Request, res: Response) => {
     userId: req.user!.id,
     name: payload.name,
     cards: payload.cards,
+    commander: payload.commander,
     updatedAt: new Date().toISOString(),
   };
   db.decks.push(deck);
@@ -324,6 +332,7 @@ app.put('/api/decks/:id', requireAuth, (req: Request, res: Response) => {
     return;
   }
   deck.name = payload.name;
+  deck.commander = payload.commander;
   deck.cards = payload.cards;
   deck.updatedAt = new Date().toISOString();
   saveDB();

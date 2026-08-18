@@ -2,11 +2,15 @@ import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { api } from '../api';
 import type { CardResult, Deck, DeckCard } from '../types';
 import { getCardImageUrl } from '../cardImage';
+import ManaCost from './ManaCost';
+import CardImage from './CardImage';
+import Navbar from './Navbar';
 
 interface Draft {
   id?: string;
   name: string;
   cards: DeckCard[];
+  commander?: string;
 }
 
 interface HoverState {
@@ -26,29 +30,46 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [hover, setHover] = useState<HoverState | null>(null);
-  const [tooltipImageUrl, setTooltipImageUrl] = useState<string | null>(null);
+  const [tooltipUrls, setTooltipUrls] = useState<Record<string, string>>({});
   const [deckImageUrls, setDeckImageUrls] = useState<Record<string, string>>({});
+  const [commanderUrl, setCommanderUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch image URLs for deck cards
+    // Fetch image URLs for deck cards (in parallel, with a module-level cache)
+    let cancelled = false;
     const fetchDeckImageUrls = async () => {
       const urls: Record<string, string> = {};
-      for (const card of draft.cards) {
-        try {
+      await Promise.all(
+        draft.cards.map(async (card) => {
           const imageUrl = await getCardImageUrl(card.scryfallOracleId);
           urls[card.scryfallOracleId] = imageUrl;
-        } catch (error) {
-          // Fallback to direct CDN URL
-          const char1 = card.scryfallOracleId.charAt(0);
-          const char2 = card.scryfallOracleId.charAt(1);
-          urls[card.scryfallOracleId] = `https://cards.scryfall.io/png/front/${char1}/${char2}/${card.scryfallOracleId}.png`;
-        }
-      }
-      setDeckImageUrls(urls);
+        }),
+      );
+      if (!cancelled) setDeckImageUrls(urls);
     };
-    
+
     fetchDeckImageUrls();
+    return () => {
+      cancelled = true;
+    };
   }, [draft.cards]);
+
+  useEffect(() => {
+    // Fetch the commander's image URL for the toolbar hover preview.
+    const commanderCard = draft.cards.find((c) => c.name === draft.commander);
+    if (!commanderCard) {
+      setCommanderUrl(null);
+      return;
+    }
+    let cancelled = false;
+    setCommanderUrl(null);
+    getCardImageUrl(commanderCard.scryfallOracleId).then((imageUrl) => {
+      if (!cancelled) setCommanderUrl(imageUrl);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [draft.commander, draft.cards]);
 
   useEffect(() => {
     api.getDecks()
@@ -83,7 +104,7 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
       const existing = d.cards.find((c) => c.name === card.name);
       const cards = existing
         ? d.cards.map((c) => (c.name === card.name ? { ...c, count: c.count + 1 } : c))
-        : [...d.cards, { name: card.name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, count: 1 }].sort(
+        : [...d.cards, { name: card.name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, type: card.type, count: 1 }].sort(
             (a, b) => a.name.localeCompare(b.name),
           );
       return { ...d, cards };
@@ -97,7 +118,9 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
         .map((c) => (c.name === name ? { ...c, count: c.count - 1 } : c))
         .filter((c) => c.count > 0)
         .sort((a, b) => a.name.localeCompare(b.name));
-      return { ...d, cards };
+      // If the commander card is removed from the deck, clear the commander.
+      const commander = d.commander && cards.some((c) => c.name === d.commander) ? d.commander : undefined;
+      return { ...d, cards, commander };
     });
   }
 
@@ -112,20 +135,35 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
   }
 
   function selectDeck(deck: Deck) {
-    setDraft({ id: deck.id, name: deck.name, cards: deck.cards.map((c) => ({ ...c })) });
+    setDraft({ id: deck.id, name: deck.name, cards: deck.cards.map((c) => ({ ...c })), commander: deck.commander });
     setDirty(false);
   }
 
   function startNewDeck() {
-    setDraft({ name: 'New Deck', cards: [] });
+    setDraft({ name: 'New Deck', cards: [], commander: undefined });
     setDirty(false);
+  }
+
+  function isLegendaryCreature(card: DeckCard | CardResult): boolean {
+    return card.type?.includes('Legendary Creature') ?? false;
+  }
+
+  function showCommanderToggle(card: DeckCard | CardResult): boolean {
+    // Only show the commander button on the selected commander, or on all
+    // legendary creatures when no commander is currently selected.
+    return isLegendaryCreature(card) && (!draft.commander || draft.commander === card.name);
+  }
+
+  function toggleCommander(name: string) {
+    setDirty(true);
+    setDraft((d) => ({ ...d, commander: d.commander === name ? undefined : name }));
   }
 
   async function saveDeck() {
     setSaving(true);
     setError('');
     try {
-      const saved = await api.saveDeck({ id: draft.id, name: draft.name, cards: draft.cards });
+      const saved = await api.saveDeck({ id: draft.id, name: draft.name, cards: draft.cards, commander: draft.commander });
       setDraft((d) => ({ ...d, id: saved.id }));
       setDirty(false);
       setDecks((prev) => {
@@ -155,7 +193,7 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
     }
   }
 
-  async function handleRowHover(e: MouseEvent<HTMLDivElement>, card: DeckCard | CardResult) {
+  function handleRowHover(e: MouseEvent<HTMLDivElement>, card: DeckCard | CardResult) {
     const rect = e.currentTarget.getBoundingClientRect();
     const tooltipW = 210;
     const tooltipH = 320;
@@ -163,23 +201,20 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
     if (top + tooltipH > window.innerHeight) top = Math.max(8, rect.top - tooltipH - 6);
     const left = Math.min(rect.left, window.innerWidth - tooltipW - 8);
     setHover({ card, x: left, y: top });
-    
-    // Fetch the image URL
-    const imageUrl = await getCardImageUrl(card.scryfallOracleId);
-    setTooltipImageUrl(imageUrl);
+
+    // Fetch the image URL (cached per card so repeat hovers are instant)
+    if (!tooltipUrls[card.scryfallOracleId]) {
+      getCardImageUrl(card.scryfallOracleId).then((imageUrl) => {
+        setTooltipUrls((prev) => ({ ...prev, [card.scryfallOracleId]: imageUrl }));
+      });
+    }
   }
 
   const inDeckCount = (name: string) => draft.cards.find((c) => c.name === name)?.count ?? 0;
 
   return (
     <div className="app">
-      <header className="header">
-        <h1>⚔️ MTG Deck Builder</h1>
-        <div className="header-right">
-          <span className="user-badge">{username}</span>
-          <button className="btn" onClick={onLogout}>Log out</button>
-        </div>
-      </header>
+      <Navbar username={username} onLogout={onLogout} />
 
       <div className="toolbar">
         <select
@@ -210,6 +245,26 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
           <button className={view === 'text' ? 'active' : ''} onClick={() => setView('text')}>Text</button>
           <button className={view === 'image' ? 'active' : ''} onClick={() => setView('image')}>Images</button>
         </div>
+        {draft.commander && (
+          <span className="commander-chip" title={draft.commander}>
+            <span className="commander-label">Commander:</span>
+            <span className="commander-name">{draft.commander}</span>
+            <button
+              className="commander-clear"
+              onClick={() => toggleCommander(draft.commander!)}
+              title="Deselect commander"
+            >
+              ×
+            </button>
+            <span className="commander-preview">
+              {commanderUrl ? (
+                <img src={commanderUrl} alt={draft.commander} />
+              ) : (
+                <span className="commander-preview-loading">…</span>
+              )}
+            </span>
+          </span>
+        )}
         <button className="btn primary" onClick={saveDeck} disabled={saving}>
           {saving ? 'Saving…' : dirty ? 'Save Deck' : 'Saved'}
         </button>
@@ -217,7 +272,8 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
           <button
             className="btn danger"
             onClick={() => {
-              if (window.confirm('Delete this deck?')) deleteDeck(draft.id);
+              const id = draft.id;
+              if (id && window.confirm('Delete this deck?')) deleteDeck(id);
             }}
           >
             Delete
@@ -244,28 +300,13 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
               <div
                 key={r.scryfallOracleId}
                 className="result-row"
-                onMouseEnter={async (e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const tooltipW = 210;
-                  const tooltipH = 320;
-                  let top = rect.bottom + 6;
-                  if (top + tooltipH > window.innerHeight) top = Math.max(8, rect.top - tooltipH - 6);
-                  const left = Math.min(rect.left, window.innerWidth - tooltipW - 8);
-                  setHover({ card: r, x: left, y: top });
-                  
-                  // Fetch the image URL
-                  const imageUrl = await getCardImageUrl(r.scryfallOracleId);
-                  setTooltipImageUrl(imageUrl);
-                }}
-                onMouseLeave={() => {
-                  setHover(null);
-                  setTooltipImageUrl(null);
-                }}
+                onMouseEnter={(e) => handleRowHover(e, r)}
+                onMouseLeave={() => setHover(null)}
               >
                 <span className="result-name">{r.name}</span>
                 <span className="result-meta">
                   {inDeckCount(r.name) > 0 ? `×${inDeckCount(r.name)} in deck` : ''}
-                  {r.manaCost && <span className="result-mana">{r.manaCost}</span>}
+                  {r.manaCost && <span className="result-mana"><ManaCost cost={r.manaCost} /></span>}
                   <button className="btn plus" onClick={() => addCard(r)} title="Add to deck">+</button>
                 </span>
               </div>
@@ -283,17 +324,21 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
                   <div
                     key={c.name}
                     className="deck-row"
-                    onMouseEnter={async (e) => {
-                      await handleRowHover(e, c);
-                    }}
-                    onMouseLeave={() => {
-                      setHover(null);
-                      setTooltipImageUrl(null);
-                    }}
+                    onMouseEnter={(e) => handleRowHover(e, c)}
+                    onMouseLeave={() => setHover(null)}
                   >
                     <span className="row-count">{c.count}</span>
                     <span className="row-name">{c.name}</span>
-                    {c.manaCost && <span className="row-mana">{c.manaCost}</span>}
+                    {c.manaCost && <span className="row-mana"><ManaCost cost={c.manaCost} /></span>}
+                    {showCommanderToggle(c) && (
+                      <button
+                        className={`btn commander-toggle${draft.commander === c.name ? ' active' : ''}`}
+                        onClick={() => toggleCommander(c.name)}
+                        title={draft.commander === c.name ? 'Remove as commander' : 'Set as commander'}
+                      >
+                        {draft.commander === c.name ? '✓' : 'C'}
+                      </button>
+                    )}
                     <button className="btn minus" onClick={() => removeCard(c.name)} title="Remove one copy">−</button>
                     <button className="btn plus" onClick={() => incrementCard(c.name)} title="Add one copy">+</button>
                   </div>
@@ -306,9 +351,18 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
             <div className="image-grid">
               {draft.cards.map((c) => (
                 <div key={c.name} className="image-card">
-                  <img src={deckImageUrls[c.scryfallOracleId]} alt={c.name} loading="lazy" />
+                  <CardImage url={deckImageUrls[c.scryfallOracleId]} alt={c.name} />
                   <span className="badge">{c.count}</span>
                   <div className="image-card-controls">
+                    {showCommanderToggle(c) && (
+                      <button
+                        className={`btn commander-toggle${draft.commander === c.name ? ' active' : ''}`}
+                        onClick={() => toggleCommander(c.name)}
+                        title={draft.commander === c.name ? 'Remove as commander' : 'Set as commander'}
+                      >
+                        {draft.commander === c.name ? '✓' : 'C'}
+                      </button>
+                    )}
                     <button className="btn minus" onClick={() => removeCard(c.name)} title="Remove one copy">−</button>
                     <button className="btn plus" onClick={() => incrementCard(c.name)} title="Add one copy">+</button>
                   </div>
@@ -321,7 +375,10 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
 
       {hover && (
         <div className="card-tooltip" style={{ left: hover.x, top: hover.y }}>
-          <img src={tooltipImageUrl || deckImageUrls[hover.card.scryfallOracleId] } alt={hover.card.name} />
+          <CardImage
+            url={tooltipUrls[hover.card.scryfallOracleId] || deckImageUrls[hover.card.scryfallOracleId]}
+            alt={hover.card.name}
+          />
         </div>
       )}
     </div>
