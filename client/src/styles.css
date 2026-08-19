@@ -334,8 +334,17 @@ select:focus {
 
 .deck-panel {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding: 16px;
+  overflow: hidden;
+}
+
+.deck-card-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .empty {
@@ -606,4 +615,405 @@ select:focus {
   border-radius: var(--radius);
   color: var(--danger);
   font-size: 13px;
+}
+
+/* ---------- Deck stats ---------- */
+.deck-stats {
+  flex-shrink: 0;
+  max-width: 760px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.deck-stats-title {
+  font-size: 12px;
+  margin: 0 0 6px;
+  color: var(--text);
+}
+
+.stats-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+}
+
+.stats-card-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 4px;
+}
+
+.stats-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.stats-graph {
+  flex-shrink: 0;
+}
+
+.stats-hearts-box {
+  flex-shrink: 0;
+}
+
+.stats-hearts {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.mana-graph {
+  width: 320px;
+  height: auto;
+  display: block;
+}
+
+.mana-graph-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.mana-graph-axis-label {
+  fill: var(--muted);
+  font-size: 9px;
+}
+
+.mana-graph-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.mana-graph-area {
+  fill: rgba(233, 161, 60, 0.15);
+}
+
+.mana-graph-dot {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 1;
+}
+
+/* ---------- Scrollbars ---------- */
+/* Firefox: thumb color + track color, no arrow buttons by default */
+* {
+  scrollbar-color: var(--accent) #3a3a40;
+}
+
+/* Webkit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #3a3a40;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: var(--radius);
+}
+
+/* Hide the arrow buttons */
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+::-webkit-scrollbar-corner {
+  background: #3a3a40;
+}
+
+/* ---------- Random hand modal ---------- */
+.hand-btn {
+  padding: 6px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.hand-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 16px;
+}
+
+.hand-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.hand-title {
+  margin: 0 0 14px;
+  font-size: 16px;
+  text-align: center;
+  color: var(--text);
+}
+
+.hand-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.hand-card {
+  width: 130px;
+}
+
+.hand-card img {
+  width: 100%;
+  display: block;
+  border-radius: var(--radius);
+}
+
+.hand-regenerate {
+  display: block;
+  margin: 0 auto;
+}
+
+/* ---------- Community ---------- */
+.community {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.community-search {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.community-type {
+  width: 160px;
+  flex-shrink: 0;
+}
+
+.community-input {
+  flex: 1;
+  max-width: 420px;
+}
+
+.community-colors {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1;
+}
+
+.community-color-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.community-color-check input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  margin: 0;
+}
+
+.community-color-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.community-results {
+  flex: 1;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+
+.community-result-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.community-deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+
+.community-deck-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.community-deck-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.community-deck-name {
+  font-weight: 600;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-deck-user {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.community-deck-commander {
+  margin-top: 8px;
+}
+
+.community-deck-commander img,
+.community-deck-commander .card-image-placeholder {
+  width: 100%;
+  display: block;
+  margin: 0 auto;
+  border-radius: var(--radius);
+}
+
+.community-deck-hearts {
+  color: var(--accent);
+  font-weight: 600;
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+.community-top-summary {
+  padding: 16px 16px 0;
+}
+
+.community-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 0 16px 16px;
+}
+
+/* ---------- Community deck card (clickable) ---------- */
+.community-deck-card {
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.community-deck-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+/* ---------- Community deck modal ---------- */
+.deck-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 16px;
+}
+
+.deck-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  max-width: 720px;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.deck-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.deck-modal-title {
+  font-size: 18px;
+  margin: 0;
+}
+
+.deck-modal-meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.deck-modal-commander {
+  color: var(--accent);
+}
+
+.deck-modal-heart-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.deck-modal-heart-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent);
+}
+
+.deck-modal-heart-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.deck-modal-heart {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.deck-modal-hearts {
+  font-size: 15px;
 }

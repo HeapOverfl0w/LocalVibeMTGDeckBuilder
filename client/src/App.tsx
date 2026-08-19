@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { api, clearToken, getToken } from './api';
 import AuthForm from './components/AuthForm';
+import Community from './components/Community';
 import DeckEditor from './components/DeckEditor';
-import Navbar from './components/Navbar';
 
 export default function App() {
   const [username, setUsername] = useState<string | null>(null);
@@ -56,15 +56,13 @@ export default function App() {
         path="/community"
         element={
           username ? (
-            <div className="app">
-              <Navbar
-                username={username}
-                onLogout={() => {
-                  clearToken();
-                  setUsername(null);
-                }}
-              />
-            </div>
+            <Community
+              username={username}
+              onLogout={() => {
+                clearToken();
+                setUsername(null);
+              }}
+            />
           ) : (
             <Navigate to="/login" replace />
           )

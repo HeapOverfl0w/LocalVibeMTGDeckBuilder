@@ -1,4 +1,4 @@
-import type { CardResult, Deck, DeckCard, User } from './types';
+import type { CardResult, CommunityDeckDetail, CommunityDeckResult, Deck, DeckCard, TopDecksResponse, User } from './types';
 
 const API_BASE = '/api';
 
@@ -51,6 +51,27 @@ export const api = {
   },
   searchCards(q: string) {
     return request<CardResult[]>(`/cards/search?q=${encodeURIComponent(q)}`);
+  },
+  searchCommunity(q: string, type: 'commander' | 'username') {
+    return request<CommunityDeckResult[]>(
+      `/community/search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`,
+      { auth: true },
+    );
+  },
+  searchCommunityByColors(colors: string[]) {
+    return request<CommunityDeckResult[]>(
+      `/community/search-by-colors?colors=${encodeURIComponent(colors.join(','))}`,
+      { auth: true },
+    );
+  },
+  getTopDecks(page: number, limit = 40) {
+    return request<TopDecksResponse>(`/community/top?page=${page}&limit=${limit}`, { auth: true });
+  },
+  getCommunityDeck(id: string) {
+    return request<CommunityDeckDetail>(`/community/decks/${id}`, { auth: true });
+  },
+  heartDeck(id: string) {
+    return request<Deck>(`/decks/${id}/heart`, { method: 'POST', auth: true });
   },
   getDecks() {
     return request<Deck[]>('/decks', { auth: true });

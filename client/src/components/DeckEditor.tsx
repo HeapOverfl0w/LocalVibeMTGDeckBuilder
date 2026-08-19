@@ -5,6 +5,8 @@ import { getCardImageUrl } from '../cardImage';
 import ManaCost from './ManaCost';
 import CardImage from './CardImage';
 import Navbar from './Navbar';
+import DeckStats from './DeckStats';
+import RandomHand from './RandomHand';
 
 interface Draft {
   id?: string;
@@ -33,6 +35,7 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
   const [tooltipUrls, setTooltipUrls] = useState<Record<string, string>>({});
   const [deckImageUrls, setDeckImageUrls] = useState<Record<string, string>>({});
   const [commanderUrl, setCommanderUrl] = useState<string | null>(null);
+  const [showRandomHand, setShowRandomHand] = useState(false);
 
   useEffect(() => {
     // Fetch image URLs for deck cards (in parallel, with a module-level cache)
@@ -104,7 +107,7 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
       const existing = d.cards.find((c) => c.name === card.name);
       const cards = existing
         ? d.cards.map((c) => (c.name === card.name ? { ...c, count: c.count + 1 } : c))
-        : [...d.cards, { name: card.name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, type: card.type, count: 1 }].sort(
+        : [...d.cards, { name: card.name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, manaValue: card.manaValue, type: card.type, count: 1 }].sort(
             (a, b) => a.name.localeCompare(b.name),
           );
       return { ...d, cards };
@@ -241,6 +244,14 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
           placeholder="Deck name"
         />
         <span className="total-badge">Total: {total} cards</span>
+        <button
+          className="btn hand-btn"
+          onClick={() => setShowRandomHand(true)}
+          disabled={total === 0}
+          title="Generate a random hand"
+        >
+          🎲
+        </button>
         <div className="view-toggle">
           <button className={view === 'text' ? 'active' : ''} onClick={() => setView('text')}>Text</button>
           <button className={view === 'image' ? 'active' : ''} onClick={() => setView('image')}>Images</button>
@@ -315,61 +326,65 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
         </aside>
 
         <section className="deck-panel">
-          {view === 'text' ? (
-            draft.cards.length === 0 ? (
+          <div className="deck-card-list">
+            {view === 'text' ? (
+              draft.cards.length === 0 ? (
+                <div className="empty">Your deck is empty. Search for cards and add them with the + button.</div>
+              ) : (
+                <div className="text-list">
+                  {draft.cards.map((c) => (
+                    <div
+                      key={c.name}
+                      className="deck-row"
+                      onMouseEnter={(e) => handleRowHover(e, c)}
+                      onMouseLeave={() => setHover(null)}
+                    >
+                      <span className="row-count">{c.count}</span>
+                      <span className="row-name">{c.name}</span>
+                      {c.manaCost && <span className="row-mana"><ManaCost cost={c.manaCost} /></span>}
+                      {showCommanderToggle(c) && (
+                        <button
+                          className={`btn commander-toggle${draft.commander === c.name ? ' active' : ''}`}
+                          onClick={() => toggleCommander(c.name)}
+                          title={draft.commander === c.name ? 'Remove as commander' : 'Set as commander'}
+                        >
+                          {draft.commander === c.name ? '✓' : 'C'}
+                        </button>
+                      )}
+                      <button className="btn minus" onClick={() => removeCard(c.name)} title="Remove one copy">−</button>
+                      <button className="btn plus" onClick={() => incrementCard(c.name)} title="Add one copy">+</button>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : draft.cards.length === 0 ? (
               <div className="empty">Your deck is empty. Search for cards and add them with the + button.</div>
             ) : (
-              <div className="text-list">
+              <div className="image-grid">
                 {draft.cards.map((c) => (
-                  <div
-                    key={c.name}
-                    className="deck-row"
-                    onMouseEnter={(e) => handleRowHover(e, c)}
-                    onMouseLeave={() => setHover(null)}
-                  >
-                    <span className="row-count">{c.count}</span>
-                    <span className="row-name">{c.name}</span>
-                    {c.manaCost && <span className="row-mana"><ManaCost cost={c.manaCost} /></span>}
-                    {showCommanderToggle(c) && (
-                      <button
-                        className={`btn commander-toggle${draft.commander === c.name ? ' active' : ''}`}
-                        onClick={() => toggleCommander(c.name)}
-                        title={draft.commander === c.name ? 'Remove as commander' : 'Set as commander'}
-                      >
-                        {draft.commander === c.name ? '✓' : 'C'}
-                      </button>
-                    )}
-                    <button className="btn minus" onClick={() => removeCard(c.name)} title="Remove one copy">−</button>
-                    <button className="btn plus" onClick={() => incrementCard(c.name)} title="Add one copy">+</button>
+                  <div key={c.name} className="image-card">
+                    <CardImage url={deckImageUrls[c.scryfallOracleId]} alt={c.name} />
+                    <span className="badge">{c.count}</span>
+                    <div className="image-card-controls">
+                      {showCommanderToggle(c) && (
+                        <button
+                          className={`btn commander-toggle${draft.commander === c.name ? ' active' : ''}`}
+                          onClick={() => toggleCommander(c.name)}
+                          title={draft.commander === c.name ? 'Remove as commander' : 'Set as commander'}
+                        >
+                          {draft.commander === c.name ? '✓' : 'C'}
+                        </button>
+                      )}
+                      <button className="btn minus" onClick={() => removeCard(c.name)} title="Remove one copy">−</button>
+                      <button className="btn plus" onClick={() => incrementCard(c.name)} title="Add one copy">+</button>
+                    </div>
                   </div>
                 ))}
               </div>
-            )
-          ) : draft.cards.length === 0 ? (
-            <div className="empty">Your deck is empty. Search for cards and add them with the + button.</div>
-          ) : (
-            <div className="image-grid">
-              {draft.cards.map((c) => (
-                <div key={c.name} className="image-card">
-                  <CardImage url={deckImageUrls[c.scryfallOracleId]} alt={c.name} />
-                  <span className="badge">{c.count}</span>
-                  <div className="image-card-controls">
-                    {showCommanderToggle(c) && (
-                      <button
-                        className={`btn commander-toggle${draft.commander === c.name ? ' active' : ''}`}
-                        onClick={() => toggleCommander(c.name)}
-                        title={draft.commander === c.name ? 'Remove as commander' : 'Set as commander'}
-                      >
-                        {draft.commander === c.name ? '✓' : 'C'}
-                      </button>
-                    )}
-                    <button className="btn minus" onClick={() => removeCard(c.name)} title="Remove one copy">−</button>
-                    <button className="btn plus" onClick={() => incrementCard(c.name)} title="Add one copy">+</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            )}
+          </div>
+
+          <DeckStats cards={draft.cards} hearts={decks.find((d) => d.id === draft.id)?.hearts ?? 0} />
         </section>
       </div>
 
@@ -380,6 +395,15 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
             alt={hover.card.name}
           />
         </div>
+      )}
+
+      {showRandomHand && (
+        <RandomHand
+          cards={draft.cards}
+          deckImageUrls={deckImageUrls}
+          commander={draft.commander}
+          onClose={() => setShowRandomHand(false)}
+        />
       )}
     </div>
   );

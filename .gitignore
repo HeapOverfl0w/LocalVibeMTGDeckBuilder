@@ -1,4 +1,8 @@
 node_modules/
 dist/
 server/data/
+server/data/*.db
+server/data/*.db-shm
+server/data/*.db-wal
 *.log
+AtomicCards.json

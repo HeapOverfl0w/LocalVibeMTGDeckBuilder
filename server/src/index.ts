@@ -4,11 +4,11 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import * as db from './db';
+import type { User, DeckCard, Deck } from './db';
 
 const PORT = Number(process.env.PORT ?? 4000);
 const JWT_SECRET = process.env.JWT_SECRET ?? 'mtg-deck-builder-dev-secret';
-const DATA_DIR = path.resolve(__dirname, '../data');
-const DATA_FILE = path.join(DATA_DIR, 'db.json');
 const CARDS_FILE = path.resolve(__dirname, '../../AtomicCards.json');
 
 // ---------------------------------------------------------------------------
@@ -22,6 +22,7 @@ interface CardIdentifier {
 interface CardData {
   identifiers: CardIdentifier;
   manaCost?: string;
+  manaValue?: number;
   type?: string;
 }
 
@@ -31,35 +32,6 @@ interface AtomicCardsResponse {
     version: string;
   };
   data: Record<string, CardData[]>;
-}
-
-interface User {
-  id: string;
-  username: string;
-  salt: string;
-  passwordHash: string;
-}
-
-interface DeckCard {
-  name: string;
-  scryfallOracleId: string;
-  count: number;
-  manaCost?: string;
-  type?: string;
-}
-
-interface Deck {
-  id: string;
-  userId: string;
-  name: string;
-  cards: DeckCard[];
-  commander?: string;
-  updatedAt: string;
-}
-
-interface DB {
-  users: User[];
-  decks: Deck[];
 }
 
 declare global {
@@ -79,6 +51,7 @@ interface CardNameData {
   scryfallOracleId: string;
   type?: string;
   manaCost?: string;
+  manaValue?: number;
 }
 
 const cardNames = new Map<string, CardNameData>();
@@ -91,23 +64,23 @@ function loadCards(): void {
     if (variations && variations.length > 0) {
       const first = variations[0];
       const scryfallOracleId = first.identifiers?.scryfallOracleId || '';
-      cardNames.set(name, { name, scryfallOracleId, manaCost: first.manaCost, type: first.type });
+      cardNames.set(name, { name, scryfallOracleId, manaCost: first.manaCost, manaValue: first.manaValue, type: first.type });
     }
   }
   console.log(`Loaded ${cardNames.size} unique card names.`);
 }
 
-function searchCards(query: string, limit: number): { name: string; scryfallOracleId: string; manaCost?: string; type?: string }[] {
+function searchCards(query: string, limit: number): { name: string; scryfallOracleId: string; manaCost?: string; manaValue?: number; type?: string }[] {
   const q = query.trim().toLowerCase();
   if (q.length < 3) return [];
   const words = q.split(/\s+/).filter(Boolean);
 
-  const results: { name: string; scryfallOracleId: string; manaCost?: string; type?: string; score: number }[] = [];
+  const results: { name: string; scryfallOracleId: string; manaCost?: string; manaValue?: number; type?: string; score: number }[] = [];
 
   for (const [name, card] of cardNames) {
     const lower = name.toLowerCase();
     if (lower === q) {
-      results.push({ name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, type: card.type, score: -10_000 });
+      results.push({ name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, manaValue: card.manaValue, type: card.type, score: -10_000 });
       continue;
     }
     let score = 0;
@@ -122,37 +95,40 @@ function searchCards(query: string, limit: number): { name: string; scryfallOrac
     }
     if (!matched) continue;
     if (lower.startsWith(q)) score -= 5_000;
-    results.push({ name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, type: card.type, score });
+    results.push({ name, scryfallOracleId: card.scryfallOracleId, manaCost: card.manaCost, manaValue: card.manaValue, type: card.type, score });
   }
 
   results.sort((a, b) => a.score - b.score || a.name.localeCompare(b.name));
-  return results.slice(0, limit).map(({ name, scryfallOracleId, manaCost, type }) => ({ name, scryfallOracleId, manaCost, type }));
+  return results.slice(0, limit).map(({ name, scryfallOracleId, manaCost, manaValue, type }) => ({ name, scryfallOracleId, manaCost, manaValue, type }));
 }
 
 function enrichDeckCards(cards: DeckCard[]): DeckCard[] {
   return cards.map((c) => {
     const known = cardNames.get(c.name);
-    return known ? { ...c, ...(known.manaCost ? { manaCost: known.manaCost } : {}), ...(known.type ? { type: known.type } : {}) } : c;
+    return known
+      ? {
+          ...c,
+          ...(known.manaCost ? { manaCost: known.manaCost } : {}),
+          ...(known.manaValue !== undefined ? { manaValue: known.manaValue } : {}),
+          ...(known.type ? { type: known.type } : {}),
+        }
+      : c;
   });
 }
 
-// ---------------------------------------------------------------------------
-// Database (JSON file)
-// ---------------------------------------------------------------------------
-
-let db: DB = { users: [], decks: [] };
-
-function loadDB(): void {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (fs.existsSync(DATA_FILE)) {
-    db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')) as DB;
+function extractColorsFromManaCost(cost: string | undefined): Set<string> {
+  const colors = new Set<string>();
+  if (!cost) return colors;
+  const regex = /\{([^}]*)\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(cost)) !== null) {
+    for (const ch of match[1]) {
+      if (ch === 'W' || ch === 'U' || ch === 'B' || ch === 'R' || ch === 'G') {
+        colors.add(ch);
+      }
+    }
   }
-}
-
-function saveDB(): void {
-  const tmp = `${DATA_FILE}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
-  fs.renameSync(tmp, DATA_FILE);
+  return colors;
 }
 
 // ---------------------------------------------------------------------------
@@ -198,11 +174,12 @@ function validateDeckPayload(body: unknown): { name: string; cards: DeckCard[]; 
   const out: DeckCard[] = [];
   for (const entry of cards) {
     if (!entry || typeof entry !== 'object') return null;
-    const { name: cardName, scryfallOracleId, count, manaCost, type } = entry as {
+    const { name: cardName, scryfallOracleId, count, manaCost, manaValue, type } = entry as {
       name?: unknown;
       scryfallOracleId?: unknown;
       count?: unknown;
       manaCost?: unknown;
+      manaValue?: unknown;
       type?: unknown;
     };
     if (
@@ -221,6 +198,7 @@ function validateDeckPayload(body: unknown): { name: string; cards: DeckCard[]; 
       count,
       ...(typeof type === 'string' ? { type } : {}),
       ...(typeof manaCost === 'string' ? { manaCost } : {}),
+      ...(typeof manaValue === 'number' ? { manaValue } : {}),
     });
   }
   return { name: name.trim(), cards: out, ...(typeof commander === 'string' ? { commander } : {}) };
@@ -249,7 +227,7 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
     res.status(400).json({ error: 'Password must be at least 6 characters' });
     return;
   }
-  if (db.users.some((u) => u.username.toLowerCase() === name.toLowerCase())) {
+  if (db.getUserByUsername(name)) {
     res.status(409).json({ error: 'Username already taken' });
     return;
   }
@@ -260,8 +238,7 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
     salt,
     passwordHash: hashPassword(password, salt),
   };
-  db.users.push(user);
-  saveDB();
+  db.insertUser(user);
   const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
   res.json({ token, user: { username: user.username } });
 });
@@ -272,7 +249,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     res.status(400).json({ error: 'Username and password are required' });
     return;
   }
-  const user = db.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
+  const user = db.getUserByUsername(username.trim());
   if (!user || !verifyPassword(password, user.salt, user.passwordHash)) {
     res.status(401).json({ error: 'Invalid username or password' });
     return;
@@ -295,9 +272,15 @@ app.get('/api/cards/search', (req: Request, res: Response) => {
 });
 
 app.get('/api/decks', requireAuth, (req: Request, res: Response) => {
-  const decks = db.decks
-    .filter((d) => d.userId === req.user!.id)
-    .map(({ userId, ...rest }) => ({ ...rest, cards: enrichDeckCards(rest.cards) }));
+  const decks = db.getDecksByUser(req.user!.id).map((d) => ({
+    id: d.id,
+    name: d.name,
+    cards: enrichDeckCards(d.cards),
+    commander: d.commander,
+    hearts: d.hearts,
+    isCommunity: d.isCommunity,
+    updatedAt: d.updatedAt,
+  }));
   res.json(decks);
 });
 
@@ -313,16 +296,17 @@ app.post('/api/decks', requireAuth, (req: Request, res: Response) => {
     name: payload.name,
     cards: payload.cards,
     commander: payload.commander,
+    hearts: 0,
+    isCommunity: false,
     updatedAt: new Date().toISOString(),
   };
-  db.decks.push(deck);
-  saveDB();
+  db.insertDeck(deck);
   res.status(201).json(deck);
 });
 
 app.put('/api/decks/:id', requireAuth, (req: Request, res: Response) => {
-  const deck = db.decks.find((d) => d.id === req.params.id && d.userId === req.user!.id);
-  if (!deck) {
+  const existing = db.getDeckById(req.params.id);
+  if (!existing || existing.userId !== req.user!.id) {
     res.status(404).json({ error: 'Deck not found' });
     return;
   }
@@ -331,30 +315,175 @@ app.put('/api/decks/:id', requireAuth, (req: Request, res: Response) => {
     res.status(400).json({ error: 'Invalid deck payload' });
     return;
   }
-  deck.name = payload.name;
-  deck.commander = payload.commander;
-  deck.cards = payload.cards;
-  deck.updatedAt = new Date().toISOString();
-  saveDB();
+  const deck: Deck = {
+    ...existing,
+    name: payload.name,
+    commander: payload.commander,
+    cards: payload.cards,
+    isCommunity: false,
+    updatedAt: new Date().toISOString(),
+  };
+  db.updateDeck(deck);
   res.json(deck);
 });
 
 app.delete('/api/decks/:id', requireAuth, (req: Request, res: Response) => {
-  const idx = db.decks.findIndex((d) => d.id === req.params.id && d.userId === req.user!.id);
-  if (idx === -1) {
+  const existing = db.getDeckById(req.params.id);
+  if (!existing || existing.userId !== req.user!.id) {
     res.status(404).json({ error: 'Deck not found' });
     return;
   }
-  db.decks.splice(idx, 1);
-  saveDB();
+  db.deleteDeck(existing.id);
   res.status(204).send();
+});
+
+app.post('/api/decks/:id/heart', requireAuth, (req: Request, res: Response) => {
+  const deck = db.getDeckById(req.params.id);
+  if (!deck) {
+    res.status(404).json({ error: 'Deck not found' });
+    return;
+  }
+  const copy: Deck = {
+    id: crypto.randomUUID(),
+    userId: req.user!.id,
+    name: deck.name,
+    cards: deck.cards.map((c) => ({ ...c })),
+    commander: deck.commander,
+    hearts: 0,
+    isCommunity: true,
+    updatedAt: new Date().toISOString(),
+  };
+  db.insertDeck(copy);
+  res.status(201).json(copy);
+});
+
+// ---------------------------------------------------------------------------
+// Community search
+// ---------------------------------------------------------------------------
+
+type CommunitySearchType = 'commander' | 'username';
+
+app.get('/api/community/search', requireAuth, (req: Request, res: Response) => {
+  const type = req.query.type;
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+
+  if (type !== 'commander' && type !== 'username') {
+    res.status(400).json({ error: 'type must be "commander" or "username"' });
+    return;
+  }
+  if (q.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const needle = q.toLowerCase();
+  const allDecks = db.getAllDecks();
+  const allUsers = db.getAllUsers();
+  const usersById = new Map(allUsers.map((u) => [u.id, u.username]));
+
+  let decks: Deck[];
+  if (type === 'commander') {
+    decks = allDecks.filter((d) => d.commander && d.commander.toLowerCase().includes(needle));
+  } else {
+    const matchingUserIds = new Set(
+      allUsers.filter((u) => u.username.toLowerCase().includes(needle)).map((u) => u.id),
+    );
+    decks = allDecks.filter((d) => matchingUserIds.has(d.userId));
+  }
+
+  const results = decks
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      username: usersById.get(d.userId) ?? 'Unknown',
+      commander: d.commander,
+      commanderOracleId: d.commander ? cardNames.get(d.commander)?.scryfallOracleId : undefined,
+      hearts: d.hearts,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  res.json(results);
+});
+
+app.get('/api/community/top', requireAuth, (req: Request, res: Response) => {
+  const rawPage = typeof req.query.page === 'string' ? parseInt(req.query.page, 10) : NaN;
+  const page = Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1;
+  const rawLimit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : NaN;
+  const limit = Number.isInteger(rawLimit) && rawLimit >= 1 ? Math.min(rawLimit, 40) : 40;
+
+  const total = db.countDecks();
+  const offset = (page - 1) * limit;
+  const decks = db.getTopDecks(limit, offset).map((d) => ({
+    id: d.id,
+    name: d.name,
+    username: db.getUserById(d.userId)?.username ?? 'Unknown',
+    commander: d.commander,
+    commanderOracleId: d.commander ? cardNames.get(d.commander)?.scryfallOracleId : undefined,
+    hearts: d.hearts,
+  }));
+
+  res.json({
+    decks,
+    total,
+    page,
+    limit,
+  });
+});
+
+app.get('/api/community/search-by-colors', requireAuth, (req: Request, res: Response) => {
+  const rawColors = typeof req.query.colors === 'string' ? req.query.colors : '';
+  const colors = [
+    ...new Set(
+      rawColors
+        .split(',')
+        .map((c) => c.trim().toUpperCase())
+        .filter((c) => c === 'W' || c === 'U' || c === 'B' || c === 'R' || c === 'G'),
+    ),
+  ];
+  if (colors.length === 0) {
+    res.json([]);
+    return;
+  }
+  const usersById = new Map(db.getAllUsers().map((u) => [u.id, u.username]));
+  const decks = db.getAllDecks()
+    .filter((d) => {
+      if (!d.commander) return false;
+      const commander = cardNames.get(d.commander);
+      if (!commander || !commander.manaCost) return false;
+      const costColors = extractColorsFromManaCost(commander.manaCost);
+      return colors.every((c) => costColors.has(c));
+    })
+    .sort((a, b) => b.hearts - a.hearts || a.name.localeCompare(b.name))
+    .slice(0, 40)
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      username: usersById.get(d.userId) ?? 'Unknown',
+      commander: d.commander,
+      commanderOracleId: d.commander ? cardNames.get(d.commander)?.scryfallOracleId : undefined,
+      hearts: d.hearts,
+    }));
+  res.json(decks);
+});
+
+app.get('/api/community/decks/:id', requireAuth, (req: Request, res: Response) => {
+  const deck = db.getDeckById(req.params.id);
+  if (!deck) {
+    res.status(404).json({ error: 'Deck not found' });
+    return;
+  }
+  res.json({
+    name: deck.name,
+    username: db.getUserById(deck.userId)?.username ?? 'Unknown',
+    commander: deck.commander,
+    hearts: deck.hearts,
+    cards: enrichDeckCards(deck.cards),
+  });
 });
 
 // ---------------------------------------------------------------------------
 // Startup
 // ---------------------------------------------------------------------------
 
-loadDB();
 loadCards();
 
 app.listen(PORT, () => {
