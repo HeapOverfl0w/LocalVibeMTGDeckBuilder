@@ -105,7 +105,21 @@ function ManaValueGraph({ values }: { values: number[] }) {
   );
 }
 
-export default function DeckStats({ cards, hearts }: { cards: DeckCard[]; hearts: number }) {
+const DESCRIPTION_MAX_LENGTH = 300;
+
+export default function DeckStats({
+  cards,
+  hearts,
+  description,
+  editable,
+  onDescriptionChange,
+}: {
+  cards: DeckCard[];
+  hearts: number;
+  description?: string;
+  editable?: boolean;
+  onDescriptionChange?: (description: string) => void;
+}) {
   const bucketValues = useMemo(() => {
     const buckets = new Array(BUCKETS.length).fill(0);
     for (const card of cards) {
@@ -118,6 +132,8 @@ export default function DeckStats({ cards, hearts }: { cards: DeckCard[]; hearts
     }
     return buckets;
   }, [cards]);
+
+  const descriptionText = description ?? '';
 
   return (
     <section className="deck-stats">
@@ -132,6 +148,28 @@ export default function DeckStats({ cards, hearts }: { cards: DeckCard[]; hearts
             <h3 className="stats-card-title">Hearts</h3>
             <p className="stats-hearts">{hearts}</p>
           </div>
+        </div>
+        <div className="stats-description">
+          <h3 className="stats-card-title">Description</h3>
+          {editable ? (
+            <>
+              <textarea
+                className="stats-description-input"
+                value={descriptionText}
+                onChange={(e) => onDescriptionChange?.(e.target.value.slice(0, DESCRIPTION_MAX_LENGTH))}
+                placeholder="Describe this deck (max 300 characters)…"
+                maxLength={DESCRIPTION_MAX_LENGTH}
+                rows={3}
+              />
+              <span className="stats-description-count">
+                {descriptionText.length}/{DESCRIPTION_MAX_LENGTH}
+              </span>
+            </>
+          ) : (
+            <p className="stats-description-text">
+              {descriptionText || 'No description.'}
+            </p>
+          )}
         </div>
       </div>
     </section>

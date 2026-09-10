@@ -20,6 +20,7 @@ export interface Deck {
   name: string;
   cards: DeckCard[];
   commander?: string;
+  description?: string;
   hearts: number;
   isCommunity: boolean;
   updatedAt?: string;
@@ -42,7 +43,9 @@ export interface CommunityDeckDetail {
   name: string;
   username: string;
   commander?: string;
+  description?: string;
   hearts: number;
+  hearted: boolean;
   cards: DeckCard[];
 }
 

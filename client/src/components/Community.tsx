@@ -8,7 +8,7 @@ import ManaCost from './ManaCost';
 
 type SearchType = 'commander' | 'username' | 'top' | 'colors';
 
-const COLOR_OPTIONS = ['G', 'U', 'B', 'R', 'W'];
+const COLOR_OPTIONS = ['C', 'G', 'U', 'B', 'R', 'W'];
 
 export default function Community({ username, onLogout }: { username: string; onLogout: () => void }) {
   const [query, setQuery] = useState('');

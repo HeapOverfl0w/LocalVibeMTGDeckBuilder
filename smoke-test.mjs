@@ -18,22 +18,23 @@ function check(name, cond) {
   console.log(`${cond ? 'PASS' : 'FAIL'}: ${name}`);
 }
 
-// Register a fresh user
-const reg = await req('POST', '/auth/register', { body: { username: 'smoketest', password: 'password123' } });
+// Register a fresh user (unique per run so the test is re-runnable)
+const username = 'smoketest_' + Date.now();
+const reg = await req('POST', '/auth/register', { body: { username, password: 'password123' } });
 check('register returns token', reg.status === 200 && reg.data.token);
 const token = reg.data.token;
 
 // Duplicate register should 409
-const dup = await req('POST', '/auth/register', { body: { username: 'smoketest', password: 'password123' } });
+const dup = await req('POST', '/auth/register', { body: { username, password: 'password123' } });
 check('duplicate register 409', dup.status === 409);
 
 // Login
-const login = await req('POST', '/auth/login', { body: { username: 'smoketest', password: 'password123' } });
+const login = await req('POST', '/auth/login', { body: { username, password: 'password123' } });
 check('login returns token', login.status === 200 && login.data.token);
 
 // me
 const me = await req('GET', '/auth/me', { token });
-check('me returns username', me.status === 200 && me.data.username === 'smoketest');
+check('me returns username', me.status === 200 && me.data.username === username);
 
 // Create deck
 const deckBody = {
@@ -56,17 +57,35 @@ check('list decks includes new deck', list.status === 200 && list.data.some((d) 
 const updated = await req('PUT', `/decks/${deckId}`, { token, body: { ...deckBody, name: 'Smoke Deck v2' } });
 check('update deck renames', updated.status === 200 && updated.data.name === 'Smoke Deck v2');
 
-// Heart deck
+// Heart deck (toggle: first call adds a heart)
 const heart = await req('POST', `/decks/${deckId}/heart`, { token });
-check('heart deck 201', heart.status === 201 && heart.data.isCommunity === true);
+check('heart deck 200', heart.status === 200 && heart.data.hearts === 1 && heart.data.hearted === true);
+
+// Un-heart deck (toggle: second call removes the heart)
+const unheart = await req('POST', `/decks/${deckId}/heart`, { token });
+check('un-heart deck 200', unheart.status === 200 && unheart.data.hearts === 0 && unheart.data.hearted === false);
+
+// Re-heart for subsequent tests
+const reheart = await req('POST', `/decks/${deckId}/heart`, { token });
+check('re-heart deck 200', reheart.status === 200 && reheart.data.hearts === 1 && reheart.data.hearted === true);
+
+// Copy deck (creates a new deck owned by the user)
+const copy = await req('POST', `/decks/${deckId}/copy`, { token });
+check('copy deck 201', copy.status === 201 && copy.data.id !== deckId && copy.data.isCommunity === true);
+
+// Updating a community deck should preserve isCommunity
+const copyUpdated = await req('PUT', `/decks/${copy.data.id}`, { token, body: { ...deckBody, name: 'Smoke Copy v2' } });
+check('update preserves isCommunity', copyUpdated.status === 200 && copyUpdated.data.isCommunity === true);
 
 // Community top
 const top = await req('GET', '/community/top?page=1&limit=40', { token });
 check('community top returns decks', top.status === 200 && Array.isArray(top.data.decks) && top.data.total >= 1);
+check('community top excludes community decks', top.data.decks.every((d) => d.id !== copy.data.id));
 
 // Community search by username
 const search = await req('GET', `/community/search?type=username&q=smoketest`, { token });
 check('community search by username', search.status === 200 && search.data.length >= 1);
+check('community search excludes community decks', search.data.every((d) => d.id !== copy.data.id));
 
 // Community deck detail
 const detail = await req('GET', `/community/decks/${deckId}`, { token });

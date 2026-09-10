@@ -13,6 +13,7 @@ interface Draft {
   name: string;
   cards: DeckCard[];
   commander?: string;
+  description?: string;
 }
 
 interface HoverState {
@@ -138,12 +139,12 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
   }
 
   function selectDeck(deck: Deck) {
-    setDraft({ id: deck.id, name: deck.name, cards: deck.cards.map((c) => ({ ...c })), commander: deck.commander });
+    setDraft({ id: deck.id, name: deck.name, cards: deck.cards.map((c) => ({ ...c })), commander: deck.commander, description: deck.description });
     setDirty(false);
   }
 
   function startNewDeck() {
-    setDraft({ name: 'New Deck', cards: [], commander: undefined });
+    setDraft({ name: 'New Deck', cards: [], commander: undefined, description: undefined });
     setDirty(false);
   }
 
@@ -166,7 +167,7 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
     setSaving(true);
     setError('');
     try {
-      const saved = await api.saveDeck({ id: draft.id, name: draft.name, cards: draft.cards, commander: draft.commander });
+      const saved = await api.saveDeck({ id: draft.id, name: draft.name, cards: draft.cards, commander: draft.commander, description: draft.description });
       setDraft((d) => ({ ...d, id: saved.id }));
       setDirty(false);
       setDecks((prev) => {
@@ -231,7 +232,9 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
         >
           <option value="">New Deck</option>
           {decks.map((d) => (
-            <option key={d.id} value={d.id}>{d.name}</option>
+            <option key={d.id} value={d.id} title={d.isCommunity ? 'Community deck' : undefined}>
+              {d.isCommunity ? '🌐 ' : ''}{d.name}
+            </option>
           ))}
         </select>
         <input
@@ -384,7 +387,16 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
             )}
           </div>
 
-          <DeckStats cards={draft.cards} hearts={decks.find((d) => d.id === draft.id)?.hearts ?? 0} />
+          <DeckStats
+            cards={draft.cards}
+            hearts={decks.find((d) => d.id === draft.id)?.hearts ?? 0}
+            description={draft.description}
+            editable
+            onDescriptionChange={(description) => {
+              setDirty(true);
+              setDraft((d) => ({ ...d, description }));
+            }}
+          />
         </section>
       </div>
 

@@ -123,12 +123,28 @@ function extractColorsFromManaCost(cost: string | undefined): Set<string> {
   let match: RegExpExecArray | null;
   while ((match = regex.exec(cost)) !== null) {
     for (const ch of match[1]) {
+      // W, U, B, R, G are colored; C (colorless) is tracked too so it can be
+      // searched, but it is not part of the commander-color bitmask below.
       if (ch === 'W' || ch === 'U' || ch === 'B' || ch === 'R' || ch === 'G') {
         colors.add(ch);
       }
     }
   }
   return colors;
+}
+
+// Commander-color bitmask: W=1, U=2, B=4, R=8, G=16.
+const COLOR_BITS: Record<string, number> = { W: 1, U: 2, B: 4, R: 8, G: 16 };
+
+function commanderColorsMask(commander: string | undefined): number {
+  if (!commander) return 0;
+  const card = cardNames.get(commander);
+  if (!card?.manaCost) return 0;
+  let mask = 0;
+  for (const c of extractColorsFromManaCost(card.manaCost)) {
+    mask |= COLOR_BITS[c];
+  }
+  return mask;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,11 +180,12 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
 // Deck payload validation
 // ---------------------------------------------------------------------------
 
-function validateDeckPayload(body: unknown): { name: string; cards: DeckCard[]; commander?: string } | null {
+function validateDeckPayload(body: unknown): { name: string; cards: DeckCard[]; commander?: string; description?: string } | null {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
-  const { name, cards, commander } = body as { name?: unknown; cards?: unknown; commander?: unknown };
+  const { name, cards, commander, description } = body as { name?: unknown; cards?: unknown; commander?: unknown; description?: unknown };
   if (typeof name !== 'string' || name.trim().length === 0 || name.trim().length > 100) return null;
   if (commander !== undefined && typeof commander !== 'string') return null;
+  if (description !== undefined && (typeof description !== 'string' || description.length > 300)) return null;
   if (!Array.isArray(cards)) return null;
 
   const out: DeckCard[] = [];
@@ -201,7 +218,12 @@ function validateDeckPayload(body: unknown): { name: string; cards: DeckCard[]; 
       ...(typeof manaValue === 'number' ? { manaValue } : {}),
     });
   }
-  return { name: name.trim(), cards: out, ...(typeof commander === 'string' ? { commander } : {}) };
+  return {
+    name: name.trim(),
+    cards: out,
+    ...(typeof commander === 'string' ? { commander } : {}),
+    ...(typeof description === 'string' && description.length > 0 ? { description } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -277,6 +299,7 @@ app.get('/api/decks', requireAuth, (req: Request, res: Response) => {
     name: d.name,
     cards: enrichDeckCards(d.cards),
     commander: d.commander,
+    description: d.description,
     hearts: d.hearts,
     isCommunity: d.isCommunity,
     updatedAt: d.updatedAt,
@@ -296,9 +319,11 @@ app.post('/api/decks', requireAuth, (req: Request, res: Response) => {
     name: payload.name,
     cards: payload.cards,
     commander: payload.commander,
+    description: payload.description,
     hearts: 0,
     isCommunity: false,
     updatedAt: new Date().toISOString(),
+    commanderColors: commanderColorsMask(payload.commander),
   };
   db.insertDeck(deck);
   res.status(201).json(deck);
@@ -320,8 +345,10 @@ app.put('/api/decks/:id', requireAuth, (req: Request, res: Response) => {
     name: payload.name,
     commander: payload.commander,
     cards: payload.cards,
-    isCommunity: false,
+    description: payload.description,
+    isCommunity: existing.isCommunity,
     updatedAt: new Date().toISOString(),
+    commanderColors: commanderColorsMask(payload.commander),
   };
   db.updateDeck(deck);
   res.json(deck);
@@ -338,6 +365,16 @@ app.delete('/api/decks/:id', requireAuth, (req: Request, res: Response) => {
 });
 
 app.post('/api/decks/:id/heart', requireAuth, (req: Request, res: Response) => {
+  const hearts = db.toggleHeart(req.params.id, req.user!.id);
+  if (hearts === undefined) {
+    res.status(404).json({ error: 'Deck not found' });
+    return;
+  }
+  const hearted = db.hasHearted(req.params.id, req.user!.id);
+  res.json({ id: req.params.id, hearts, hearted });
+});
+
+app.post('/api/decks/:id/copy', requireAuth, (req: Request, res: Response) => {
   const deck = db.getDeckById(req.params.id);
   if (!deck) {
     res.status(404).json({ error: 'Deck not found' });
@@ -349,9 +386,11 @@ app.post('/api/decks/:id/heart', requireAuth, (req: Request, res: Response) => {
     name: deck.name,
     cards: deck.cards.map((c) => ({ ...c })),
     commander: deck.commander,
+    description: deck.description,
     hearts: 0,
     isCommunity: true,
     updatedAt: new Date().toISOString(),
+    commanderColors: commanderColorsMask(deck.commander),
   };
   db.insertDeck(copy);
   res.status(201).json(copy);
@@ -377,26 +416,17 @@ app.get('/api/community/search', requireAuth, (req: Request, res: Response) => {
   }
 
   const needle = q.toLowerCase();
-  const allDecks = db.getAllDecks();
-  const allUsers = db.getAllUsers();
-  const usersById = new Map(allUsers.map((u) => [u.id, u.username]));
+  const rows =
+    type === 'commander'
+      ? db.searchCommunityByCommander(needle)
+      : db.searchCommunityByUsername(needle);
 
-  let decks: Deck[];
-  if (type === 'commander') {
-    decks = allDecks.filter((d) => d.commander && d.commander.toLowerCase().includes(needle));
-  } else {
-    const matchingUserIds = new Set(
-      allUsers.filter((u) => u.username.toLowerCase().includes(needle)).map((u) => u.id),
-    );
-    decks = allDecks.filter((d) => matchingUserIds.has(d.userId));
-  }
-
-  const results = decks
+  const results = rows
     .map((d) => ({
       id: d.id,
       name: d.name,
-      username: usersById.get(d.userId) ?? 'Unknown',
-      commander: d.commander,
+      username: d.username ?? 'Unknown',
+      commander: d.commander ?? undefined,
       commanderOracleId: d.commander ? cardNames.get(d.commander)?.scryfallOracleId : undefined,
       hearts: d.hearts,
     }))
@@ -412,11 +442,11 @@ app.get('/api/community/top', requireAuth, (req: Request, res: Response) => {
 
   const total = db.countDecks();
   const offset = (page - 1) * limit;
-  const decks = db.getTopDecks(limit, offset).map((d) => ({
+  const decks = db.getTopCommunity(limit, offset).map((d) => ({
     id: d.id,
     name: d.name,
-    username: db.getUserById(d.userId)?.username ?? 'Unknown',
-    commander: d.commander,
+    username: d.username ?? 'Unknown',
+    commander: d.commander ?? undefined,
     commanderOracleId: d.commander ? cardNames.get(d.commander)?.scryfallOracleId : undefined,
     hearts: d.hearts,
   }));
@@ -436,46 +466,41 @@ app.get('/api/community/search-by-colors', requireAuth, (req: Request, res: Resp
       rawColors
         .split(',')
         .map((c) => c.trim().toUpperCase())
-        .filter((c) => c === 'W' || c === 'U' || c === 'B' || c === 'R' || c === 'G'),
+        .filter((c) => c === 'W' || c === 'U' || c === 'B' || c === 'R' || c === 'G' || c === 'C'),
     ),
   ];
   if (colors.length === 0) {
     res.json([]);
     return;
   }
-  const usersById = new Map(db.getAllUsers().map((u) => [u.id, u.username]));
-  const decks = db.getAllDecks()
-    .filter((d) => {
-      if (!d.commander) return false;
-      const commander = cardNames.get(d.commander);
-      if (!commander || !commander.manaCost) return false;
-      const costColors = extractColorsFromManaCost(commander.manaCost);
-      return colors.every((c) => costColors.has(c));
-    })
-    .sort((a, b) => b.hearts - a.hearts || a.name.localeCompare(b.name))
-    .slice(0, 40)
-    .map((d) => ({
-      id: d.id,
-      name: d.name,
-      username: usersById.get(d.userId) ?? 'Unknown',
-      commander: d.commander,
-      commanderOracleId: d.commander ? cardNames.get(d.commander)?.scryfallOracleId : undefined,
-      hearts: d.hearts,
-    }));
+  // Colorless ({C}) has no color, so it is tracked separately. A Colorless
+  // commander has commander_colors === 0, and every colorless deck must match.
+  const colorless = colors.includes('C');
+  const mask = colors.filter((c) => c !== 'C').reduce((m, c) => m | COLOR_BITS[c], 0);
+  const decks = db.searchCommunityByColors(mask, 40, colorless).map((d) => ({
+    id: d.id,
+    name: d.name,
+    username: d.username ?? 'Unknown',
+    commander: d.commander ?? undefined,
+    commanderOracleId: d.commander ? cardNames.get(d.commander)?.scryfallOracleId : undefined,
+    hearts: d.hearts,
+  }));
   res.json(decks);
 });
 
 app.get('/api/community/decks/:id', requireAuth, (req: Request, res: Response) => {
-  const deck = db.getDeckById(req.params.id);
+  const deck = db.getCommunityDeckWithUser(req.params.id);
   if (!deck) {
     res.status(404).json({ error: 'Deck not found' });
     return;
   }
   res.json({
     name: deck.name,
-    username: db.getUserById(deck.userId)?.username ?? 'Unknown',
-    commander: deck.commander,
+    username: deck.username ?? 'Unknown',
+    commander: deck.commander ?? undefined,
+    description: deck.description ?? undefined,
     hearts: deck.hearts,
+    hearted: db.hasHearted(deck.id, req.user!.id),
     cards: enrichDeckCards(deck.cards),
   });
 });
@@ -485,6 +510,7 @@ app.get('/api/community/decks/:id', requireAuth, (req: Request, res: Response) =
 // ---------------------------------------------------------------------------
 
 loadCards();
+db.backfillCommanderColors((commander) => commanderColorsMask(commander));
 
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);

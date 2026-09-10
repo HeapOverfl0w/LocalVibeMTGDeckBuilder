@@ -71,12 +71,15 @@ export const api = {
     return request<CommunityDeckDetail>(`/community/decks/${id}`, { auth: true });
   },
   heartDeck(id: string) {
-    return request<Deck>(`/decks/${id}/heart`, { method: 'POST', auth: true });
+    return request<{ id: string; hearts: number; hearted: boolean }>(`/decks/${id}/heart`, { method: 'POST', auth: true });
+  },
+  copyDeck(id: string) {
+    return request<Deck>(`/decks/${id}/copy`, { method: 'POST', auth: true });
   },
   getDecks() {
     return request<Deck[]>('/decks', { auth: true });
   },
-  saveDeck(deck: { id?: string; name: string; cards: DeckCard[]; commander?: string }) {
+  saveDeck(deck: { id?: string; name: string; cards: DeckCard[]; commander?: string; description?: string }) {
     return deck.id
       ? request<Deck>(`/decks/${deck.id}`, { method: 'PUT', auth: true, body: deck })
       : request<Deck>('/decks', { method: 'POST', auth: true, body: deck });

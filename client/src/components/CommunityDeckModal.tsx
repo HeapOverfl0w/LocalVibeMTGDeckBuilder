@@ -22,16 +22,22 @@ export default function CommunityDeckModal({ deck, onClose }: CommunityDeckModal
   const [error, setError] = useState('');
   const [hover, setHover] = useState<HoverState | null>(null);
   const [tooltipUrls, setTooltipUrls] = useState<Record<string, string>>({});
-  const [hearted, setHearted] = useState(false);
+  const [hearted, setHearted] = useState<boolean | null>(null);
   const [hearting, setHearting] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setDetail(null);
     setError('');
+    setHearted(null);
     api.getCommunityDeck(deck.id)
       .then((d) => {
-        if (!cancelled) setDetail(d);
+        if (!cancelled) {
+          setDetail(d);
+          setHearted(d.hearted);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load deck');
@@ -55,16 +61,29 @@ export default function CommunityDeckModal({ deck, onClose }: CommunityDeckModal
   }
 
   async function handleHeartClick() {
-    if (hearted || hearting) return;
+    if (hearting) return;
     setHearting(true);
     try {
-      await api.heartDeck(deck.id);
-      setHearted(true);
-      setDetail((prev) => (prev ? { ...prev, hearts: prev.hearts + 1 } : prev));
+      const res = await api.heartDeck(deck.id);
+      setHearted(res.hearted);
+      setDetail((prev) => (prev ? { ...prev, hearts: res.hearts, hearted: res.hearted } : prev));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to heart deck');
     } finally {
       setHearting(false);
+    }
+  }
+
+  async function handleCopyClick() {
+    if (copied || copying) return;
+    setCopying(true);
+    try {
+      await api.copyDeck(deck.id);
+      setCopied(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to copy deck');
+    } finally {
+      setCopying(false);
     }
   }
 
@@ -96,16 +115,27 @@ export default function CommunityDeckModal({ deck, onClose }: CommunityDeckModal
               <span className="deck-modal-commander"> · Commander: {deck.commander}</span>
             )}
           </div>
-          <button
-            type="button"
-            className="deck-modal-heart-btn"
-            onClick={handleHeartClick}
-            disabled={hearted || hearting}
-            title={hearted ? 'Deck hearted' : 'Heart this deck'}
-          >
-            <span className="deck-modal-heart">♥</span>
-            <span className="deck-modal-hearts">{detail ? detail.hearts : deck.hearts}</span>
-          </button>
+          <div className="deck-modal-actions">
+            <button
+              type="button"
+              className={`deck-modal-heart-btn${hearted ? ' hearted' : ''}`}
+              onClick={handleHeartClick}
+              disabled={hearting}
+              title={hearted ? 'Remove heart' : 'Heart this deck'}
+            >
+              <span className="deck-modal-heart">♥</span>
+              <span className="deck-modal-hearts">{detail ? detail.hearts : deck.hearts}</span>
+            </button>
+            <button
+              type="button"
+              className="deck-modal-copy-btn"
+              onClick={handleCopyClick}
+              disabled={copied || copying}
+              title={copied ? 'Deck copied to your account' : 'Copy this deck to your account'}
+            >
+              {copied ? '✓ Copied' : copying ? 'Copying…' : 'Copy deck'}
+            </button>
+          </div>
         </div>
 
         {error && <div className="error-banner">{error}</div>}
@@ -132,7 +162,7 @@ export default function CommunityDeckModal({ deck, onClose }: CommunityDeckModal
                 ))
               )}
             </div>
-            <DeckStats cards={detail.cards} hearts={detail.hearts} />
+            <DeckStats cards={detail.cards} hearts={detail.hearts} description={detail.description} editable={false} />
           </>
         )}
 

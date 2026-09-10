@@ -620,7 +620,7 @@ select:focus {
 /* ---------- Deck stats ---------- */
 .deck-stats {
   flex-shrink: 0;
-  max-width: 760px;
+  max-width: 900px;
   margin-top: 12px;
   border-top: 1px solid var(--border);
   padding-top: 10px;
@@ -666,6 +666,47 @@ select:focus {
   margin: 0;
   font-size: 14px;
   color: var(--text);
+}
+
+.stats-description {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.stats-description-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 60px;
+  padding: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  line-height: 1.4;
+}
+
+.stats-description-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.stats-description-count {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.stats-description-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  white-space: pre-wrap;
 }
 
 .mana-graph {
@@ -983,6 +1024,13 @@ select:focus {
   color: var(--accent);
 }
 
+.deck-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .deck-modal-heart-btn {
   display: inline-flex;
   align-items: center;
@@ -999,6 +1047,29 @@ select:focus {
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
+.deck-modal-copy-btn {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.deck-modal-copy-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent);
+}
+
+.deck-modal-copy-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .deck-modal-heart-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--accent);
@@ -1012,6 +1083,11 @@ select:focus {
 .deck-modal-heart {
   font-size: 22px;
   line-height: 1;
+  color: var(--muted);
+}
+
+.deck-modal-heart-btn.hearted .deck-modal-heart {
+  color: #ffd700;
 }
 
 .deck-modal-hearts {
