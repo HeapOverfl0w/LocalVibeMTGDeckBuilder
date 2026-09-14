@@ -17,6 +17,9 @@ export default function Navbar({ username, onLogout }: NavbarProps) {
           <NavLink to="/decks" className={({ isActive }) => (isActive ? 'active' : '')}>
             My Decks
           </NavLink>
+          <NavLink to="/play" className={({ isActive }) => (isActive ? 'active' : '')}>
+            Play
+          </NavLink>
         </nav>
       </div>
       <div className="header-right">

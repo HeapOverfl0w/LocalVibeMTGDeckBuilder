@@ -53,7 +53,7 @@ export default function RandomHand({ cards, deckImageUrls, commander, onClose }:
         <div className="hand-cards">
           {hand.map((card, i) => (
             <div key={i} className="hand-card">
-              <CardImage url={deckImageUrls[card.scryfallOracleId]} alt={card.name} />
+              <CardImage url={deckImageUrls[card.scryfallOracleId]} alt={card.name} manaCost={card.manaCost} />
             </div>
           ))}
         </div>

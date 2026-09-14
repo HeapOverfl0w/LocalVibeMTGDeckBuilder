@@ -168,7 +168,7 @@ export default function CommunityDeckModal({ deck, onClose }: CommunityDeckModal
 
         {hover && (
           <div className="card-tooltip" style={{ left: hover.x, top: hover.y }}>
-            <CardImage url={tooltipUrls[hover.card.scryfallOracleId]} alt={hover.card.name} />
+            <CardImage url={tooltipUrls[hover.card.scryfallOracleId]} alt={hover.card.name} manaCost={hover.card.manaCost} />
           </div>
         )}
       </div>

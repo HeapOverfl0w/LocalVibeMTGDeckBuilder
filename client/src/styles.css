@@ -480,6 +480,35 @@ select:focus {
 
 .card-image-error {
   color: var(--danger);
+  justify-content: flex-start;
+}
+
+/* Card name pinned to the top of a failed image so players can still read it. */
+.card-image-error-name {
+  width: 100%;
+  padding: 8px 8px 0;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Mana circles under the name in a failed image (only when the cost is known). */
+.card-image-error-cost {
+  display: flex;
+  justify-content: center;
+  padding: 4px 8px 0;
+}
+
+/* The warning centers in whatever space is left under the name. */
+.card-image-error-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 .card-image-error-icon {
@@ -1092,4 +1121,1343 @@ select:focus {
 
 .deck-modal-hearts {
   font-size: 15px;
+}
+
+/* ---------- Play (Phase 4 foundation) ---------- */
+.play-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Floating "return to match" pill (rendered by PlaySessionProvider). */
+.play-return-pill {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 3000;
+  padding: 10px 16px;
+  background: var(--accent);
+  color: #1a1205;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.play-return-pill:hover {
+  background: var(--accent-hover);
+}
+
+/* Landing (Phase 5) */
+.play-landing {
+  max-width: 640px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.play-landing h2 {
+  margin: 0 0 16px;
+}
+
+.play-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(208, 101, 92, 0.15);
+  border: 1px solid var(--danger);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.play-banner-toast {
+  background: rgba(233, 161, 60, 0.12);
+  border-color: var(--accent);
+}
+
+.play-banner-dismiss {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.play-banner-dismiss:hover {
+  color: var(--text);
+}
+
+.play-landing-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.play-field {
+  display: block;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.play-field select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.play-landing-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.play-sections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .play-sections {
+    grid-template-columns: 1fr;
+  }
+}
+
+.play-section {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.play-section h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.play-section-desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  flex-grow: 1;
+}
+
+.play-section .btn {
+  align-self: flex-start;
+}
+
+.lobby-code-input {
+  width: 110px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-size: 15px;
+}
+
+/* Lobby modal (Phase 5 — reuses hand-modal backdrop/dialog) */
+.lobby-modal {
+  width: 380px;
+}
+
+.lobby-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.lobby-code {
+  text-align: center;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  color: var(--accent);
+}
+
+.lobby-copy-btn {
+  padding: 6px 12px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lobby-copy-btn:hover {
+  border-color: var(--accent);
+}
+
+.lobby-copy-btn.copied {
+  border-color: #4caf7d;
+  color: #4caf7d;
+}
+
+.lobby-subtitle {
+  text-align: center;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+
+.lobby-players {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+}
+
+.lobby-players li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.lobby-players li.disconnected {
+  color: var(--muted);
+}
+
+.lobby-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+
+.lobby-dot.on {
+  background: #4caf7d;
+}
+
+.lobby-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* ---------- Game table (Phase 6 — layout & card rendering) ---------- */
+.game-table {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.game-mock-note {
+  text-align: center;
+  margin: 48px auto 16px;
+}
+
+/* Top bar: lobby code • player chips … [Leave] */
+.game-topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.game-lobby-code {
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--accent);
+}
+
+.game-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.player-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.player-chip.disconnected {
+  color: var(--muted);
+}
+
+/* Play grid (Phase 10): every player gets an equal play cell.
+   1 player → one full-area cell; 2 players → two half-screen cells side by
+   side; 3–4 players → 2×2 grid with missing seats rendered as blank cells. */
+.game-grid {
+  flex: 1;
+  display: grid;
+  gap: 12px;
+  padding: 12px 16px 16px;
+  min-height: 0;
+}
+
+.game-grid.grid-1 {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.game-grid.grid-2 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.game-grid.grid-4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+/* One player's play area — identical structure for everyone */
+.player-cell {
+  position: relative; /* anchors the roll-display overlay */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.player-cell.disconnected {
+  opacity: 0.65;
+}
+
+.player-cell-own .player-cell-name {
+  color: var(--accent);
+}
+
+/* Blank slot for a seat that isn't filled (e.g. 3 players → 4th cell) */
+.player-cell-empty {
+  background: transparent;
+  border-style: dashed;
+}
+
+.player-cell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.player-cell-name {
+  font-weight: 600;
+  font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Life total — right of the name in the header. Own cell: editable input;
+   opponents see a read-only number (same pill, no textbox). */
+.player-cell-id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.player-life {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.life-heart {
+  color: #e5484d;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.player-life-editable .life-input {
+  width: 4.8ch;
+  padding: 0; /* global input rule pads 8px/10px — that would eat the pill */
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+}
+
+.player-life-editable:focus-within {
+  border-color: var(--accent);
+}
+
+.player-cell-chips {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Deck chip — mini card back with 🃏 centered + count. Own: click = draw,
+   right-click = menu, drop = top of deck. The opponent hand chip reuses this
+   class (with 🖐️) via .cell-hand-chip. */
+.cell-deck {
+  position: relative;
+  width: 40px;
+}
+
+.cell-deck .card-back {
+  border-width: 1px;
+  display: grid;
+  place-items: center;
+}
+
+/* Graveyard chip — same look as the deck chip, with a 🪦 centered on the card
+   back and the count badge in the corner. Click opens the list; own is also
+   a drop target. */
+.cell-gy {
+  position: relative;
+  width: 40px;
+  cursor: pointer;
+}
+
+.cell-gy .card-back {
+  border-width: 1px;
+  display: grid;
+  place-items: center;
+}
+
+/* Centered icons on the chip card backs (deck 🃏 / hand 🖐️ / graveyard 🪦) */
+.gy-symbol,
+.deck-symbol,
+.hand-symbol {
+  font-size: 18px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Table zone — free-form canvas, equal for every player */
+.cell-table {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: rgba(38, 38, 42, 0.4);
+  min-height: 120px;
+}
+
+/* Empty-state hint, centered inside the free-form table zone */
+.cell-table > .zone-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.zone-hint {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Hand strip — face-up cards (own, drop target) or fanned card backs (others).
+   Fixed min-height so the table zone doesn't reflow when the hand changes. */
+.cell-hand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 118px;
+}
+
+.cell-hand .zone-hint {
+  pointer-events: none;
+}
+
+/* Opponent hand chip — deliberately styled exactly like the deck chip
+   (.cell-deck); the extra class is just a hook for identification. */
+.cell-hand-chip {
+  cursor: default;
+}
+
+/* Face-down card back (CSS-only, no asset) + count badge */
+.card-back {
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #34343c 0%, #232329 40%, #2f2f37 100%);
+  border: 2px solid var(--border);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.05), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.count-badge {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  background: var(--accent);
+  color: #1a1205;
+  font-weight: 700;
+  font-size: 13px;
+  border-radius: 999px;
+  padding: 2px 9px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* Card sizes (aspect ratio 63/88 comes from the card image) */
+.gt-card {
+  aspect-ratio: 63 / 88;
+  flex-shrink: 0;
+}
+
+.gt-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.gt-card-hand {
+  width: 72px;
+}
+
+/* Table cards — the same size in every player's cell (equal play space) */
+.gt-card-cell {
+  width: 110px;
+}
+
+/* Tapped card — rotated 90°. Transform-only, so the layout does not reflow;
+   a little overlap with neighbours is intentional (like a real tapped card)
+   and z-index keeps it on top of them. */
+.gt-card {
+  transition: transform 150ms ease;
+}
+
+.gt-card.tapped {
+  transform: rotate(90deg);
+  z-index: 1;
+}
+
+/* Free-form table placement (Phase 10): cards are absolutely positioned by
+   --tx/--ty (percent of the zone, set inline per card) and centered on that
+   point. The left/top transition makes server-driven moves slide into place
+   for every player. These rules come after the generic .gt-card block so the
+   extended transition wins at equal specificity. */
+.gt-card-cell {
+  position: absolute;
+  left: var(--tx, 50%);
+  top: var(--ty, 50%);
+  transform: translate(-50%, -50%);
+  transition: left 180ms ease, top 180ms ease, transform 150ms ease;
+}
+
+/* Tapped table cards keep their centering translate while rotating. */
+.gt-card-cell.tapped {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+/* The card being dragged stays put while its drag image follows the cursor —
+   dim it so the spot reads as "vacant". */
+.gt-card.dragging {
+  opacity: 0.35;
+}
+
+/* Placement preview following the cursor over the table zone. pointer-events:
+   none so it never interferes with drag hit-testing. */
+.gt-drop-ghost {
+  position: absolute;
+  width: 110px;
+  aspect-ratio: 63 / 88;
+  transform: translate(-50%, -50%);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  background: rgba(233, 161, 60, 0.12);
+  pointer-events: none;
+}
+
+/* ---------- Play interactions (Phase 7) ---------- */
+
+/* Clickable / draggable affordances */
+.clickable {
+  cursor: pointer;
+}
+
+.draggable-card {
+  cursor: grab;
+}
+
+.draggable-card:active {
+  cursor: grabbing;
+}
+
+/* Drop-target highlight while a card is dragged over it */
+.drop-target-active {
+  border-color: var(--accent) !important;
+  background: rgba(233, 161, 60, 0.08);
+}
+
+/* Context menu (right-click on your deck stack / hand & table cards) */
+.context-menu {
+  position: fixed;
+  z-index: 3000;
+  min-width: 170px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  padding: 4px;
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+}
+
+.context-menu-item:hover {
+  background: var(--panel-2);
+  color: var(--accent);
+}
+
+/* Card zoom modal — large card view from the right-click menu. The backdrop
+   click closes it (handled in the component); the dialog stops propagation. */
+.zoom-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  padding: 16px;
+  cursor: zoom-out;
+}
+
+.zoom-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  padding: 18px;
+  text-align: center;
+  cursor: default;
+}
+
+.zoom-modal-title {
+  margin: 0 0 12px;
+  font-size: 17px;
+  color: var(--text);
+}
+
+.zoom-modal .card-image-placeholder,
+.zoom-modal img {
+  width: min(64vmin, 420px);
+  aspect-ratio: 63 / 88;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+  border-radius: var(--radius);
+}
+
+/* Counter pips on table cards (Step 10.7) — one small dot per counter, a
+   column starting at the card's bottom-left and stacking upward. Rendered
+   inside .gt-card-cell so they rotate with tapped cards for free. */
+.counter-pips {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.counter-pip {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 0, 0, 0.65);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.pip-blue { background: #3b82f6; }
+.pip-red { background: #ef4444; }
+.pip-green { background: #22c55e; }
+.pip-white { background: #f8fafc; border-color: rgba(0, 0, 0, 0.8); }
+.pip-black { background: #111827; border-color: rgba(255, 255, 255, 0.7); }
+
+/* Counter modal (Step 10.7) — five colored circles with +/− on either side */
+.counter-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  padding: 16px;
+}
+
+.counter-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  padding: 18px;
+  width: 300px;
+}
+
+.counter-modal-title {
+  margin: 0 0 14px;
+  font-size: 17px;
+  color: var(--text);
+  text-align: center;
+}
+
+.counter-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.counter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.counter-circle {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  border: 2px solid rgba(0, 0, 0, 0.65);
+  box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.25);
+}
+
+.counter-circle-blue { background: #3b82f6; }
+.counter-circle-red { background: #ef4444; }
+.counter-circle-green { background: #22c55e; }
+.counter-circle-white { background: #f8fafc; color: #111827; border-color: rgba(0, 0, 0, 0.8); }
+.counter-circle-black { background: #111827; border-color: rgba(255, 255, 255, 0.7); }
+
+.counter-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.counter-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.counter-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.counter-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Graveyard list modal (reuses hand-modal backdrop/dialog) */
+.graveyard-modal {
+  width: 360px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.gy-rows {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.gy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.gy-row:last-child {
+  border-bottom: none;
+}
+
+.gy-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Magnifying glass on graveyard rows — opens the shared card zoom modal */
+.gy-zoom-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  font-size: 15px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.gy-zoom-btn:hover {
+  background: var(--panel-2);
+  opacity: 1;
+}
+
+.gy-row-draggable {
+  cursor: grab;
+}
+
+.gy-row-draggable:hover {
+  background: var(--panel-2);
+}
+
+.gy-empty {
+  margin: 0 0 12px;
+}
+
+.gy-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+
+.gy-close {
+  align-self: flex-end;
+}
+
+/* While a graveyard row is being dragged, let drops pass through the backdrop */
+.gt-drag-passthrough {
+  pointer-events: none;
+}
+
+/* …but keep the modal panel itself interactive. Chromium cancels a native drag
+   as soon as the dragged element (or an ancestor) stops being hit-testable, so
+   the row must remain pointer-event-enabled even while the backdrop is not. */
+.gt-drag-passthrough .hand-modal {
+  pointer-events: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Tokens (Step 10.8) — player-made table cards with no image: name on top
+   (wrapping), "X/Y" power/toughness at the bottom, both centered. The + button
+   lives in the chip row, left of your deck chip; the dialog reuses the counter
+   modal's look.
+--------------------------------------------------------------------------- */
+
+.token-add-btn {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.token-add-btn:hover {
+  border-color: var(--accent);
+}
+
+.gt-token {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 6px;
+  background: linear-gradient(160deg, #aeb9c6, #8494a7);
+  color: #1f2937;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.gt-token-name {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.gt-token-pt {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Token without power/toughness — center the name vertically. */
+.gt-token-no-pt {
+  justify-content: center;
+}
+
+/* Enlarged token face in the zoom modal (same box as a zoomed card image) */
+.zoom-modal .zoom-token {
+  width: min(64vmin, 420px);
+  aspect-ratio: 63 / 88;
+  margin: 0 auto;
+}
+
+.zoom-modal .zoom-token .gt-token-name {
+  font-size: 22px;
+}
+
+.zoom-modal .zoom-token .gt-token-pt {
+  font-size: 26px;
+}
+
+/* New-token dialog (Step 10.8) — Name / Power / Toughness text boxes */
+.token-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  padding: 16px;
+}
+
+.token-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  padding: 18px;
+  width: 320px;
+}
+
+.token-modal-title {
+  margin: 0 0 14px;
+  font-size: 17px;
+  color: var(--text);
+  text-align: center;
+}
+
+.token-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.token-field-label {
+  font-size: 12px;
+  color: var(--muted, #9ca3af);
+}
+
+.token-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 9px;
+  border-radius: calc(var(--radius) - 4px);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.token-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.token-pt-row {
+  display: flex;
+  gap: 10px;
+}
+
+.token-pt-row .token-field {
+  flex: 1;
+}
+
+.token-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.token-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ---------- Import deck modal ---------- */
+.import-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  padding: 16px;
+}
+
+.import-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  padding: 18px;
+  width: 480px;
+  max-width: 100%;
+}
+
+.import-modal-title {
+  margin: 0 0 10px;
+  font-size: 17px;
+  color: var(--text);
+  text-align: center;
+}
+
+.import-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.import-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  height: 260px;
+  padding: 8px 10px;
+  border-radius: calc(var(--radius) - 4px);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.import-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.import-errors {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: calc(var(--radius) - 4px);
+  border: 1px solid var(--danger);
+  background: rgba(208, 101, 92, 0.12);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.import-errors-title {
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.import-errors ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.import-errors li {
+  margin: 2px 0;
+}
+
+.import-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ---------- Place card modal (Step 10.10) ---------- */
+.place-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  padding: 16px;
+}
+
+.place-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  padding: 18px;
+  width: 360px;
+}
+
+.place-modal-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  color: var(--text);
+  text-align: center;
+}
+
+.place-modal-subtitle {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.place-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--panel-2);
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.place-option:hover {
+  border-color: var(--accent);
+}
+
+.place-option input[type='radio'] {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.place-depth-input {
+  width: 64px;
+  padding: 3px 6px;
+  border-radius: calc(var(--radius) - 6px);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  text-align: center;
+}
+
+.place-depth-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.place-depth-input:disabled {
+  opacity: 0.45;
+}
+
+.place-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.place-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ---------- Dice (Step 10.11) ---------- */
+/* 🎲 button — same round chip as the + token button, sits between it and the deck chip */
+.dice-btn {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dice-btn:hover {
+  border-color: var(--accent);
+}
+
+/* Roll result — large number in the middle of the rolling player's play area.
+   pointer-events: none so it never blocks card clicks/drags underneath. */
+.roll-display {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  width: min(240px, 60%);
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(13, 17, 24, 0.88) 0%, rgba(13, 17, 24, 0.62) 55%, transparent 72%);
+  pointer-events: none;
+  animation: roll-pop 180ms ease-out;
+}
+
+@keyframes roll-pop {
+  from {
+    transform: translate(-50%, -50%) scale(1.45);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+.roll-value {
+  font-size: clamp(64px, 9vmin, 120px);
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 3px 14px rgba(0, 0, 0, 0.7);
+}
+
+.roll-label {
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+}
+
+/* ---------- Roll-a-die modal (Step 10.11) ---------- */
+.dice-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  padding: 16px;
+}
+
+.dice-modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  padding: 18px;
+  width: 300px;
+}
+
+.dice-modal-title {
+  margin: 0 0 14px;
+  font-size: 17px;
+  color: var(--text);
+  text-align: center;
+}
+
+.dice-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--panel-2);
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.dice-option:hover {
+  border-color: var(--accent);
+}
+
+.dice-option input[type='radio'] {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.dice-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
 }

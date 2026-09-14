@@ -18,6 +18,20 @@ export function clearToken(): void {
   setToken(null);
 }
 
+/** Decode the `userId` claim from the stored JWT (payload: { userId, username }). */
+export function getUserId(): string | null {
+  const t = getToken();
+  if (!t) return null;
+  try {
+    const segment = t.split('.')[1] ?? '';
+    const base64 = segment.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (segment.length % 4)) % 4);
+    const payload = JSON.parse(atob(base64)) as { userId?: unknown };
+    return typeof payload.userId === 'string' ? payload.userId : null;
+  } catch {
+    return null;
+  }
+}
+
 async function request<T>(path: string, options: { method?: string; body?: unknown; auth?: boolean } = {}): Promise<T> {
   const headers: Record<string, string> = {};
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
@@ -83,6 +97,17 @@ export const api = {
     return deck.id
       ? request<Deck>(`/decks/${deck.id}`, { method: 'PUT', auth: true, body: deck })
       : request<Deck>('/decks', { method: 'POST', auth: true, body: deck });
+  },
+  /**
+   * Import a plain-text deck list ("4 Twinflame", one card per line). The
+   * server resolves every name and is all-or-nothing: ok:true with the full
+   * resolved card list, or ok:false with per-line errors (nothing imported).
+   */
+  importDeck(text: string) {
+    return request<
+      | { ok: true; cards: DeckCard[] }
+      | { ok: false; errors: { line: number; message: string }[] }
+    >('/decks/import', { method: 'POST', auth: true, body: { text } });
   },
   deleteDeck(id: string) {
     return request<void>(`/decks/${id}`, { method: 'DELETE', auth: true });

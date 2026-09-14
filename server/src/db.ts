@@ -330,12 +330,15 @@ export function getTopCommunity(limit: number, offset: number): CommunityDeckRow
 }
 
 /**
- * Pure-SQL color search. `mask` is the required commander-color bitmask
- * (W=1, U=2, B=4, R=8, G=16); a deck matches when it contains every requested
- * color, i.e. `(commander_colors & mask) = mask`.
+ * Pure-SQL color search (EXACT match). `mask` is the requested commander-color
+ * bitmask (W=1, U=2, B=4, R=8, G=16); a deck matches only when its color
+ * identity equals the selection exactly, i.e. `commander_colors = mask`.
+ * Checking G shows green commanders only — not green/blue ones.
  *
  * When `colorless` is true, only Colorless commanders (commander_colors === 0)
- * should match, so the color filter is replaced with an equality check.
+ * should match, so the filter becomes an equality check against 0. (A
+ * colorless commander cannot also have a color, so C + any other color is
+ * handled as "no results" by the caller.)
  */
 export function searchCommunityByColors(mask: number, limit: number, colorless: boolean): CommunityDeckRow[] {
   if (colorless) {
@@ -349,10 +352,10 @@ export function searchCommunityByColors(mask: number, limit: number, colorless: 
   }
   const rows = db
     .prepare(
-      `${COMMUNITY_DECK_SELECT} WHERE d.is_community = 0 AND (d.commander_colors & ?) = ? ` +
+      `${COMMUNITY_DECK_SELECT} WHERE d.is_community = 0 AND d.commander_colors = ? ` +
         'ORDER BY d.hearts DESC, d.name ASC LIMIT ?',
     )
-    .all(mask, mask, limit) as unknown as CommunityDeckRow[];
+    .all(mask, limit) as unknown as CommunityDeckRow[];
   return rows;
 }
 

@@ -30,7 +30,7 @@ export default function CommunityDeckCard({ deck, onOpen }: { deck: CommunityDec
       <div className="community-deck-user">by {deck.username}</div>
       {deck.commander && (
         <div className="community-deck-commander">
-          <CardImage url={commanderUrl} alt={deck.commander} />
+          <CardImage url={commanderUrl} alt={deck.commander} manaCost={deck.commanderManaCost} />
         </div>
       )}
     </div>

@@ -170,7 +170,7 @@ export default function Community({ username, onLogout }: { username: string; on
             <div className="muted">Enter a commander or username to search community decks.</div>
           )}
           {!searching && !searched && type === 'colors' && selectedColors.length === 0 && (
-            <div className="muted">Select one or more colors to search community decks.</div>
+            <div className="muted">Select the exact commander colors to search — e.g. G + U shows only green/blue commanders.</div>
           )}
           {type === 'top' && !searching && topTotal > 0 && (
             <div className="community-top-summary muted">

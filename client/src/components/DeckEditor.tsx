@@ -7,6 +7,7 @@ import CardImage from './CardImage';
 import Navbar from './Navbar';
 import DeckStats from './DeckStats';
 import RandomHand from './RandomHand';
+import ImportDeckModal from './ImportDeckModal';
 
 interface Draft {
   id?: string;
@@ -37,6 +38,7 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
   const [deckImageUrls, setDeckImageUrls] = useState<Record<string, string>>({});
   const [commanderUrl, setCommanderUrl] = useState<string | null>(null);
   const [showRandomHand, setShowRandomHand] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
     // Fetch image URLs for deck cards (in parallel, with a module-level cache)
@@ -148,8 +150,28 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
     setDirty(false);
   }
 
+  /** Merge server-resolved import results into the draft (the deck is empty on a pristine New Deck). */
+  function handleImported(cards: DeckCard[]) {
+    setShowImport(false);
+    setDirty(true);
+    setDraft((d) => {
+      const byName = new Map(d.cards.map((c) => [c.name, c]));
+      for (const card of cards) {
+        const existing = byName.get(card.name);
+        if (existing) existing.count += card.count;
+        else byName.set(card.name, { ...card });
+      }
+      return { ...d, cards: [...byName.values()].sort((a, b) => a.name.localeCompare(b.name)) };
+    });
+  }
+
   function isLegendaryCreature(card: DeckCard | CardResult): boolean {
-    return card.type?.includes('Legendary Creature') ?? false;
+    // The type line starts with the supertype(s), so a commander-eligible card
+    // begins with "Legendary" and carries "Creature" as its (card) type — this
+    // covers plain creatures ("Legendary Creature — ...") as well as
+    // "Legendary Artifact Creature — ..." and "Legendary Enchantment Creature — ...".
+    const t = card.type ?? '';
+    return t.startsWith('Legendary') && /\bCreature\b/.test(t);
   }
 
   function showCommanderToggle(card: DeckCard | CardResult): boolean {
@@ -279,6 +301,12 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
             </span>
           </span>
         )}
+        {/* Import is only offered on a pristine New Deck (unsaved, no changes). */}
+        {!draft.id && !dirty && (
+          <button className="btn" onClick={() => setShowImport(true)} title="Import a deck from plain text">
+            Import
+          </button>
+        )}
         <button className="btn primary" onClick={saveDeck} disabled={saving}>
           {saving ? 'Saving…' : dirty ? 'Save Deck' : 'Saved'}
         </button>
@@ -366,7 +394,7 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
               <div className="image-grid">
                 {draft.cards.map((c) => (
                   <div key={c.name} className="image-card">
-                    <CardImage url={deckImageUrls[c.scryfallOracleId]} alt={c.name} />
+                    <CardImage url={deckImageUrls[c.scryfallOracleId]} alt={c.name} manaCost={c.manaCost} />
                     <span className="badge">{c.count}</span>
                     <div className="image-card-controls">
                       {showCommanderToggle(c) && (
@@ -405,6 +433,7 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
           <CardImage
             url={tooltipUrls[hover.card.scryfallOracleId] || deckImageUrls[hover.card.scryfallOracleId]}
             alt={hover.card.name}
+            manaCost={hover.card.manaCost}
           />
         </div>
       )}
@@ -417,6 +446,8 @@ export default function DeckEditor({ username, onLogout }: { username: string; o
           onClose={() => setShowRandomHand(false)}
         />
       )}
+
+      {showImport && <ImportDeckModal onImported={handleImported} onClose={() => setShowImport(false)} />}
     </div>
   );
 }

@@ -1,65 +1,9 @@
-export interface CardResult {
-  name: string;
-  scryfallOracleId: string;
-  manaCost?: string;
-  manaValue?: number;
-  type?: string;
-}
-
-export interface DeckCard {
-  name: string;
-  scryfallOracleId: string;
-  count: number;
-  manaCost?: string;
-  manaValue?: number;
-  type?: string;
-}
-
-export interface Deck {
-  id: string;
-  name: string;
-  cards: DeckCard[];
-  commander?: string;
-  description?: string;
-  hearts: number;
-  isCommunity: boolean;
-  updatedAt?: string;
-}
-
-export interface User {
-  username: string;
-}
-
-export interface CommunityDeckResult {
-  id: string;
-  name: string;
-  username: string;
-  commander?: string;
-  commanderOracleId?: string;
-  /** Commander's mana cost (e.g. "{1}{U}{G}") — used for the image-error placeholder. */
-  commanderManaCost?: string;
-  hearts: number;
-}
-
-export interface CommunityDeckDetail {
-  name: string;
-  username: string;
-  commander?: string;
-  description?: string;
-  hearts: number;
-  hearted: boolean;
-  cards: DeckCard[];
-}
-
-export interface TopDecksResponse {
-  decks: CommunityDeckResult[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
 // ---------------------------------------------------------------------------
-// Play (hand-mirrored from server/src/play/types.ts — no shared package)
+// Play shared types (server side).
+//
+// The client keeps a hand-mirrored copy of these shapes in
+// client/src/types.ts — there is no shared package in this repo
+// (see docs/plan.md §4).
 // ---------------------------------------------------------------------------
 
 /** A normalized point inside the table zone (fractions of width/height, 0..1). */
@@ -71,6 +15,16 @@ export interface TablePos {
 /** The five counter colors. Order matters — it is the render order of the pip column. */
 export type CounterColor = 'blue' | 'red' | 'green' | 'white' | 'black';
 
+/** The dice a player may roll (d2, d4, d6, d8, d20). */
+export const DICE_SIDES = [2, 4, 6, 8, 20] as const;
+export type DiceSides = (typeof DICE_SIDES)[number];
+
+/** The result of a player's last dice roll — shown to everyone until the player acts again. */
+export interface RollResult {
+  value: number;
+  sides: DiceSides;
+}
+
 export const COUNTER_COLORS: CounterColor[] = ['blue', 'red', 'green', 'white', 'black'];
 
 /** Counters on a table card — one count per color. Only present while the card is on the table. */
@@ -80,6 +34,12 @@ export interface CardCounters {
   green: number;
   white: number;
   black: number;
+}
+
+/** A player-made token (no image — rendered from name + power/toughness). */
+export interface TokenInfo {
+  power: string;
+  toughness: string;
 }
 
 /** A physical copy of a card inside a match. */
@@ -98,22 +58,6 @@ export interface CardInstance {
   counters?: CardCounters;
   /** Present on tokens only — they live on the table and are destroyed if moved off it. */
   token?: TokenInfo;
-}
-
-/** A player-made token (no image — rendered from name + power/toughness). */
-export interface TokenInfo {
-  power: string;
-  toughness: string;
-}
-
-/** The dice a player may roll (d2, d4, d6, d8, d20). */
-export const DICE_SIDES = [2, 4, 6, 8, 20] as const;
-export type DiceSides = (typeof DICE_SIDES)[number];
-
-/** The result of a player's last dice roll — shown to everyone until the player acts again. */
-export interface RollResult {
-  value: number;
-  sides: DiceSides;
 }
 
 /** One player's zones in a match. The client finds itself by userId. */
@@ -138,6 +82,10 @@ export interface MatchState {
   players: PlayerMatchState[];
 }
 
+// ---------------------------------------------------------------------------
+// Lobby (public info only)
+// ---------------------------------------------------------------------------
+
 export type LobbyStatus = 'waiting' | 'active';
 
 export interface LobbyPlayerInfo {
@@ -154,12 +102,18 @@ export interface LobbyInfo {
   players: LobbyPlayerInfo[];
 }
 
+// ---------------------------------------------------------------------------
+// Zones & moves
+// ---------------------------------------------------------------------------
+
 export type Zone = 'hand' | 'table' | 'deck' | 'graveyard';
 
 /** Zones a card may be moved *from* (you never move a card out of your deck). */
 export type MoveFromZone = Exclude<Zone, 'deck'>;
 
+// ---------------------------------------------------------------------------
 // Client → server messages (intents)
+// ---------------------------------------------------------------------------
 
 export interface CreateLobbyMessage {
   type: 'create_lobby';
@@ -267,7 +221,9 @@ export type ClientMessage =
   | SetLifeMessage
   | RollDiceMessage;
 
+// ---------------------------------------------------------------------------
 // Server → client messages
+// ---------------------------------------------------------------------------
 
 export interface LobbyJoinedMessage {
   type: 'lobby_joined';
@@ -309,3 +265,27 @@ export type ServerMessage =
   | StateUpdateMessage
   | SessionEndMessage
   | ErrorMessage;
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+/**
+ * Idle timeout for lobbies (waiting or active): after this long without any
+ * client action the lobby is closed. Exposed as an env var so tests can
+ * shrink it (default 10 minutes).
+ *
+ * Degenerate values are rejected, not honored: PLAY_IDLE_TIMEOUT_MS='' or 0
+ * would parse to 0 and close every lobby on the first sweep tick (a leaked
+ * test value in the shell is the classic way this bites — see Step 10.12).
+ * Anything below 1 s falls back to the default with a warning.
+ */
+const DEFAULT_IDLE_TIMEOUT_MS = 600_000;
+const rawIdleTimeout = Number(process.env.PLAY_IDLE_TIMEOUT_MS ?? DEFAULT_IDLE_TIMEOUT_MS);
+export const PLAY_IDLE_TIMEOUT_MS: number =
+  Number.isFinite(rawIdleTimeout) && rawIdleTimeout >= 1000 ? rawIdleTimeout : DEFAULT_IDLE_TIMEOUT_MS;
+if (PLAY_IDLE_TIMEOUT_MS !== rawIdleTimeout) {
+  console.warn(
+    `[play] PLAY_IDLE_TIMEOUT_MS=${JSON.stringify(process.env.PLAY_IDLE_TIMEOUT_MS)} is not a usable value (need >= 1000 ms) — using the ${DEFAULT_IDLE_TIMEOUT_MS / 60000}-minute default.`,
+  );
+}

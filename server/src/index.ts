@@ -1,11 +1,13 @@
 import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
+import http from 'node:http';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import * as db from './db';
 import type { User, DeckCard, Deck } from './db';
+import { attachPlay } from './play/ws';
 
 const PORT = Number(process.env.PORT ?? 4000);
 const JWT_SECRET = process.env.JWT_SECRET ?? 'mtg-deck-builder-dev-secret';
@@ -55,6 +57,8 @@ interface CardNameData {
 }
 
 const cardNames = new Map<string, CardNameData>();
+/** Same data keyed by lowercased name — for case-insensitive exact + prefix lookups (deck import). */
+const cardNamesByLower = new Map<string, CardNameData>();
 
 function loadCards(): void {
   console.log(`Loading cards from ${CARDS_FILE}...`);
@@ -64,7 +68,9 @@ function loadCards(): void {
     if (variations && variations.length > 0) {
       const first = variations[0];
       const scryfallOracleId = first.identifiers?.scryfallOracleId || '';
-      cardNames.set(name, { name, scryfallOracleId, manaCost: first.manaCost, manaValue: first.manaValue, type: first.type });
+      const card: CardNameData = { name, scryfallOracleId, manaCost: first.manaCost, manaValue: first.manaValue, type: first.type };
+      cardNames.set(name, card);
+      cardNamesByLower.set(name.toLowerCase(), card);
     }
   }
   console.log(`Loaded ${cardNames.size} unique card names.`);
@@ -159,6 +165,16 @@ function verifyPassword(password: string, salt: string, hash: string): boolean {
   const candidate = Buffer.from(hashPassword(password, salt), 'hex');
   const expected = Buffer.from(hash, 'hex');
   return candidate.length === expected.length && crypto.timingSafeEqual(candidate, expected);
+}
+
+/** Verify a JWT and return the user, or null when missing/invalid/expired. Used by the play websocket upgrade handler. */
+function verifyToken(token: string): { id: string; username: string } | null {
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: string; username: string };
+    return { id: payload.userId, username: payload.username };
+  } catch {
+    return null;
+  }
 }
 
 function requireAuth(req: Request, res: Response, next: NextFunction): void {
@@ -329,6 +345,111 @@ app.post('/api/decks', requireAuth, (req: Request, res: Response) => {
   res.status(201).json(deck);
 });
 
+// ---------------------------------------------------------------------------
+// Deck import — parse plain-text deck lists ("4 Twinflame", one card per line)
+// and resolve every name against the local card DB. All-or-nothing: if any
+// line is malformed, a count is out of range, or a card cannot be found,
+// NOTHING is imported and every problem is reported back (200 with ok:false —
+// validation results are data, not transport errors). Duplicate lines for the
+// same card are summed.
+// ---------------------------------------------------------------------------
+
+interface ImportError {
+  line: number;
+  message: string;
+}
+
+/**
+ * Resolve an import name to a card. An exact (case-insensitive) match always
+ * wins; otherwise the name is treated as a case-insensitive prefix and any
+ * cards whose names start with it are collected. Zero matches → not-found
+ * error; one → that card; several → ambiguous error (never guess).
+ */
+function resolveImportCard(name: string): { card?: CardNameData; error?: string } {
+  const lower = name.toLowerCase();
+  const exact = cardNamesByLower.get(lower);
+  if (exact) return { card: exact };
+
+  // No exact match — prefix scan. Keys are already lowercased.
+  const matches: CardNameData[] = [];
+  for (const [key, card] of cardNamesByLower) {
+    if (key.startsWith(lower)) {
+      matches.push(card);
+      if (matches.length >= 6) break; // enough to prove ambiguity and sample it
+    }
+  }
+  if (matches.length === 1) return { card: matches[0] };
+  if (matches.length > 1) {
+    const sample = matches.slice(0, 5).map((c) => c.name).join(', ');
+    return { error: `Ambiguous name "${name}" — it matches ${matches.length >= 6 ? 'at least 6' : String(matches.length)} cards (${sample}${matches.length > 5 ? ', …' : ''}). Use a more specific name.` };
+  }
+  return { error: `Card not found: ${name}` };
+}
+
+app.post('/api/decks/import', requireAuth, (req: Request, res: Response) => {
+  const body = req.body as { text?: unknown } | null;
+  if (!body || typeof body.text !== 'string') {
+    res.status(400).json({ error: 'Body must be { text: string }' });
+    return;
+  }
+
+  const errors: ImportError[] = [];
+  // name (canonical) -> accumulated count + resolved card data.
+  const merged = new Map<string, { count: number; card: CardNameData }>();
+
+  body.text.split(/\r?\n/).forEach((raw, i) => {
+    const text = raw.trim();
+    if (text === '') return; // blank lines are ignored
+    const m = /^(\d+)\s+(.+)$/.exec(text);
+    if (!m) {
+      errors.push({ line: i + 1, message: `Invalid format "${text}" — expected "<count> <card name>"` });
+      return;
+    }
+    const count = parseInt(m[1], 10);
+    const name = m[2].trim();
+    if (count < 1 || count > 100) {
+      errors.push({ line: i + 1, message: `Count for "${name}" must be between 1 and 100` });
+      return;
+    }
+    const resolved = resolveImportCard(name);
+    if (!resolved.card) {
+      errors.push({ line: i + 1, message: resolved.error! });
+      return;
+    }
+    const card = resolved.card;
+    const existing = merged.get(card.name);
+    if (existing) existing.count += count;
+    else merged.set(card.name, { count, card });
+  });
+
+  // Each line may be in range while summed duplicates exceed the per-card cap.
+  for (const [name, entry] of merged) {
+    if (entry.count > 100) errors.push({ line: 0, message: `Total count for "${name}" exceeds 100` });
+  }
+
+  if (errors.length === 0 && merged.size === 0) {
+    errors.push({ line: 0, message: 'No cards to import' });
+  }
+
+  if (errors.length > 0) {
+    res.json({ ok: false, errors });
+    return;
+  }
+
+  const cards = [...merged.values()]
+    .map(({ count, card }) => ({
+      name: card.name,
+      scryfallOracleId: card.scryfallOracleId,
+      count,
+      ...(card.type ? { type: card.type } : {}),
+      ...(card.manaCost ? { manaCost: card.manaCost } : {}),
+      ...(card.manaValue !== undefined ? { manaValue: card.manaValue } : {}),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  res.json({ ok: true, cards });
+});
+
 app.put('/api/decks/:id', requireAuth, (req: Request, res: Response) => {
   const existing = db.getDeckById(req.params.id);
   if (!existing || existing.userId !== req.user!.id) {
@@ -428,6 +549,7 @@ app.get('/api/community/search', requireAuth, (req: Request, res: Response) => {
       username: d.username ?? 'Unknown',
       commander: d.commander ?? undefined,
       commanderOracleId: d.commander ? cardNames.get(d.commander)?.scryfallOracleId : undefined,
+      commanderManaCost: d.commander ? cardNames.get(d.commander)?.manaCost : undefined,
       hearts: d.hearts,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -448,6 +570,7 @@ app.get('/api/community/top', requireAuth, (req: Request, res: Response) => {
     username: d.username ?? 'Unknown',
     commander: d.commander ?? undefined,
     commanderOracleId: d.commander ? cardNames.get(d.commander)?.scryfallOracleId : undefined,
+    commanderManaCost: d.commander ? cardNames.get(d.commander)?.manaCost : undefined,
     hearts: d.hearts,
   }));
 
@@ -473,9 +596,15 @@ app.get('/api/community/search-by-colors', requireAuth, (req: Request, res: Resp
     res.json([]);
     return;
   }
-  // Colorless ({C}) has no color, so it is tracked separately. A Colorless
-  // commander has commander_colors === 0, and every colorless deck must match.
+  // Exact-match semantics: the commander's color identity must equal the
+  // selection. Colorless ({C}) has no color, so it is tracked separately — a
+  // colorless-only selection matches commander_colors === 0, and C combined
+  // with any color can never match (a commander cannot be both).
   const colorless = colors.includes('C');
+  if (colorless && colors.length > 1) {
+    res.json([]);
+    return;
+  }
   const mask = colors.filter((c) => c !== 'C').reduce((m, c) => m | COLOR_BITS[c], 0);
   const decks = db.searchCommunityByColors(mask, 40, colorless).map((d) => ({
     id: d.id,
@@ -483,6 +612,7 @@ app.get('/api/community/search-by-colors', requireAuth, (req: Request, res: Resp
     username: d.username ?? 'Unknown',
     commander: d.commander ?? undefined,
     commanderOracleId: d.commander ? cardNames.get(d.commander)?.scryfallOracleId : undefined,
+    commanderManaCost: d.commander ? cardNames.get(d.commander)?.manaCost : undefined,
     hearts: d.hearts,
   }));
   res.json(decks);
@@ -506,12 +636,47 @@ app.get('/api/community/decks/:id', requireAuth, (req: Request, res: Response) =
 });
 
 // ---------------------------------------------------------------------------
+// Production static hosting — serve the built client (client/dist) when it
+// exists, so one port serves the UI, the API, and the /play WebSocket. In dev,
+// Vite on :5173 serves the client and proxies /api + /play here, so this block
+// is a no-op until you run `npm run build`.
+// ---------------------------------------------------------------------------
+
+const CLIENT_DIST = path.resolve(__dirname, '../../client/dist');
+if (fs.existsSync(CLIENT_DIST)) {
+  app.use(express.static(CLIENT_DIST));
+  // SPA fallback: any non-API GET returns index.html so client-side routes
+  // (/decks, /community, /play, ...) survive a browser refresh.
+  app.get('*', (req: Request, res: Response) => {
+    if (req.path.startsWith('/api/')) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Startup
 // ---------------------------------------------------------------------------
 
 loadCards();
 db.backfillCommanderColors((commander) => commanderColorsMask(commander));
 
-app.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
+const httpServer = http.createServer(app);
+attachPlay(httpServer, {
+  verifyToken,
+  getOwnedDeck(userId, deckId) {
+    const deck = db.getDeckById(deckId);
+    return deck && deck.userId === userId ? deck : null;
+  },
+});
+
+httpServer.listen(PORT, () => {
+  console.log(`Server listening on http://localhost:${PORT} (all interfaces)`);
+  if (fs.existsSync(CLIENT_DIST)) {
+    console.log(`Serving built client from ${CLIENT_DIST}`);
+  } else {
+    console.log('No client build found — API only (run `npm run build` to serve the UI on this port)');
+  }
 });
